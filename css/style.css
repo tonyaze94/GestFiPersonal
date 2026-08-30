@@ -1,0 +1,908 @@
+/* ===========================================================================
+   GestFi -- folha de estilos unica.
+   Tema escuro fixo: sem alternancia, sem prefers-color-scheme.
+   Sem framework externo, sem dependencias de build.
+   =========================================================================== */
+
+:root {
+  /* Superficies */
+  --bg:            #12151B;
+  --superficie:    #1C2029;
+  --superficie-2:  #232833;
+  --borda:         #2A2F3A;
+
+  /* Texto */
+  --texto:         #E8E9EC;
+  --texto-fraco:   #6B7280;
+
+  /* Semantica financeira */
+  --positivo:      #1F9D6B;
+  --negativo:      #D9483C;
+  --aviso:         #E8A33D;
+
+  /* Destaque neutro */
+  --destaque:      #2B5CB8;
+  --destaque-alto: #3670D8;
+
+  /* Metrica */
+  --raio:          10px;
+  --raio-peq:      6px;
+  --esp:           16px;
+  --nav-altura:    60px;
+  --nav-largura:   232px;
+
+  --fonte: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+/* --------------------------------------------------------------------------
+   Base
+   -------------------------------------------------------------------------- */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--texto);
+  font-family: var(--fonte);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-text-size-adjust: 100%;
+}
+
+h1, h2, h3 { margin: 0; font-weight: 600; line-height: 1.25; }
+p { margin: 0; }
+
+[hidden] { display: none !important; }
+
+/* Foco sempre visivel, sobretudo nos campos de valores e datas. */
+:focus-visible {
+  outline: 2px solid var(--destaque-alto);
+  outline-offset: 2px;
+  border-radius: var(--raio-peq);
+}
+
+/* Numeros monetarios alinhados verticalmente nas listas. */
+.valor, .mono, td.num, input[inputmode="decimal"], input[type="date"] {
+  font-variant-numeric: tabular-nums;
+}
+
+.valor { font-weight: 600; }
+.valor--positivo { color: var(--positivo); }
+.valor--negativo { color: var(--negativo); }
+.valor--neutro   { color: var(--texto-fraco); }
+
+/* --------------------------------------------------------------------------
+   Botoes
+   -------------------------------------------------------------------------- */
+
+.btn {
+  font: inherit;
+  font-weight: 600;
+  border: 1px solid transparent;
+  border-radius: var(--raio-peq);
+  padding: 10px 16px;
+  cursor: pointer;
+  background: var(--superficie-2);
+  color: var(--texto);
+  transition: background-color .12s ease;
+}
+
+.btn:hover:not(:disabled) { background: #2C3240; }
+.btn:disabled { opacity: .55; cursor: default; }
+
+.btn--primario { background: var(--destaque); color: #fff; }
+.btn--primario:hover:not(:disabled) { background: var(--destaque-alto); }
+
+.btn--largo { width: 100%; display: block; margin-top: 4px; }
+
+.btn--texto {
+  background: none;
+  color: var(--texto-fraco);
+  padding: 10px 0;
+  width: 100%;
+  margin-top: 12px;
+  font-weight: 500;
+}
+.btn--texto:hover { background: none; color: var(--texto); text-decoration: underline; }
+
+.btn--perigo { color: var(--negativo); }
+
+/* --------------------------------------------------------------------------
+   Campos de formulario
+   -------------------------------------------------------------------------- */
+
+.campo { display: block; margin-bottom: var(--esp); }
+
+.campo__etiqueta {
+  display: block;
+  font-size: 13px;
+  color: var(--texto-fraco);
+  margin-bottom: 6px;
+}
+
+.campo input,
+.campo select,
+.campo textarea {
+  font: inherit;
+  width: 100%;
+  padding: 11px 12px;
+  color: var(--texto);
+  background: var(--bg);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio-peq);
+}
+
+.campo input:focus,
+.campo select:focus,
+.campo textarea:focus { border-color: var(--destaque); outline-offset: 0; }
+
+/* Campo de codigo de 6 digitos: grande e espacado. */
+.campo__codigo {
+  text-align: center;
+  font-size: 26px;
+  letter-spacing: .35em;
+  text-indent: .35em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* --------------------------------------------------------------------------
+   Ecra de entrada
+   -------------------------------------------------------------------------- */
+
+.entrada {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.entrada__cartao {
+  width: 100%;
+  max-width: 380px;
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  padding: 28px 24px;
+}
+
+.entrada__marca {
+  font-size: 24px;
+  letter-spacing: -.02em;
+  margin-bottom: 6px;
+}
+
+.entrada__titulo { font-size: 17px; margin-bottom: 8px; }
+
+.entrada__sub {
+  color: var(--texto-fraco);
+  font-size: 14px;
+  margin-bottom: 22px;
+}
+
+.entrada__segredo {
+  font-size: 13px;
+  color: var(--texto-fraco);
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.entrada__segredo code {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 6px 10px;
+  background: var(--bg);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio-peq);
+  color: var(--texto);
+  font-size: 13px;
+  letter-spacing: .06em;
+  word-break: break-all;
+}
+
+.qr__caixa { display: grid; place-items: center; margin-bottom: 18px; min-height: 180px; }
+
+/* Fundo branco por baixo do QR: os leitores precisam de contraste. */
+.qr {
+  width: 190px;
+  height: 190px;
+  background: #fff;
+  padding: 8px;
+  border-radius: var(--raio-peq);
+}
+
+/* --------------------------------------------------------------------------
+   Estrutura da aplicacao
+   -------------------------------------------------------------------------- */
+
+.app { min-height: 100dvh; }
+
+.conteudo {
+  padding: var(--esp);
+  padding-bottom: calc(var(--nav-altura) + env(safe-area-inset-bottom) + 24px);
+  max-width: 940px;
+  margin: 0 auto;
+}
+
+.conteudo:focus { outline: none; }
+
+/* --- Navegacao: barra inferior em telemovel --- */
+
+.nav {
+  position: fixed;
+  z-index: 20;
+  inset: auto 0 0 0;
+  height: calc(var(--nav-altura) + env(safe-area-inset-bottom));
+  padding-bottom: env(safe-area-inset-bottom);
+  display: flex;
+  background: var(--superficie);
+  border-top: 1px solid var(--borda);
+}
+
+.nav__marca { display: none; }
+
+.nav__item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--texto-fraco);
+  text-decoration: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  padding: 0;
+}
+
+.nav__item--sair { display: none; }
+
+.nav__icone { width: 21px; height: 21px; fill: currentColor; }
+
+.nav__item[aria-current="page"] { color: var(--texto); }
+.nav__item[aria-current="page"] .nav__icone { fill: var(--destaque-alto); }
+
+/* --- Navegacao: barra lateral em ecra largo --- */
+
+@media (min-width: 860px) {
+  .nav {
+    inset: 0 auto 0 0;
+    width: var(--nav-largura);
+    height: 100dvh;
+    padding: 20px 12px;
+    flex-direction: column;
+    gap: 4px;
+    border-top: none;
+    border-right: 1px solid var(--borda);
+  }
+
+  .nav__marca {
+    display: block;
+    font-size: 19px;
+    font-weight: 600;
+    letter-spacing: -.02em;
+    padding: 0 10px 20px;
+  }
+
+  .nav__item {
+    flex: 0 0 auto;
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 12px;
+    font-size: 14.5px;
+    padding: 10px;
+    border-radius: var(--raio-peq);
+    width: 100%;
+  }
+
+  .nav__item:hover { background: var(--superficie-2); color: var(--texto); }
+  .nav__item[aria-current="page"] { background: var(--superficie-2); }
+  .nav__item--sair { display: flex; margin-top: auto; }
+
+  .conteudo {
+    margin-left: var(--nav-largura);
+    padding: 28px 32px;
+    max-width: none;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Componentes reutilizaveis
+   -------------------------------------------------------------------------- */
+
+/* Cartao */
+.cartao {
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  padding: var(--esp);
+  margin-bottom: var(--esp);
+}
+
+.cartao__titulo {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--texto-fraco);
+  margin-bottom: 10px;
+}
+
+/* Cabecalho de ecra */
+.cabecalho {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: var(--esp);
+}
+
+.cabecalho__titulo { font-size: 20px; letter-spacing: -.01em; }
+
+/* Chip de categoria: bolinha de cor + nome, nunca so texto */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13.5px;
+  white-space: nowrap;
+}
+
+.chip__ponto {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--texto-fraco);
+  flex: none;
+}
+
+/* Barra de progresso do orcamento */
+.barra {
+  height: 7px;
+  background: var(--superficie-2);
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.barra__preenchimento {
+  height: 100%;
+  border-radius: 99px;
+  background: var(--positivo);
+  transition: width .2s ease;
+}
+
+.barra--perto  .barra__preenchimento { background: var(--aviso); }
+.barra--excede .barra__preenchimento { background: var(--negativo); }
+
+/* Icone de "oculto da analise" */
+.oculto {
+  color: var(--texto-fraco);
+  width: 15px;
+  height: 15px;
+  fill: currentColor;
+  flex: none;
+}
+
+/* Estado vazio com accao directa */
+.vazio {
+  text-align: center;
+  padding: 36px 16px;
+}
+
+.vazio__texto {
+  color: var(--texto-fraco);
+  font-size: 14.5px;
+  margin-bottom: 16px;
+}
+
+/* Aviso temporario no fundo do ecra */
+.aviso {
+  position: fixed;
+  z-index: 40;
+  left: 50%;
+  bottom: calc(var(--nav-altura) + env(safe-area-inset-bottom) + 16px);
+  transform: translate(-50%, 12px);
+  max-width: min(440px, calc(100vw - 32px));
+  padding: 11px 16px;
+  border-radius: var(--raio-peq);
+  background: var(--superficie-2);
+  border: 1px solid var(--borda);
+  color: var(--texto);
+  font-size: 14px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .16s ease, transform .16s ease;
+}
+
+.aviso--visivel { opacity: 1; transform: translate(-50%, 0); }
+.aviso--erro    { border-color: var(--negativo); }
+.aviso--sucesso { border-color: var(--positivo); }
+
+@media (min-width: 860px) {
+  .aviso { bottom: 24px; left: calc(50% + var(--nav-largura) / 2); }
+}
+
+/* Espera */
+.espera {
+  color: var(--texto-fraco);
+  font-size: 14px;
+  padding: 32px 0;
+  text-align: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: .01ms !important; }
+}
+
+/* --------------------------------------------------------------------------
+   Separadores (Contas / Categorias / Etiquetas)
+   -------------------------------------------------------------------------- */
+
+.abas {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid var(--borda);
+  overflow-x: auto;
+}
+
+.abas__item {
+  padding: 9px 14px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--texto-fraco);
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  white-space: nowrap;
+}
+
+.abas__item:hover { color: var(--texto); }
+
+.abas__item--activo {
+  color: var(--texto);
+  border-bottom-color: var(--destaque-alto);
+}
+
+/* --------------------------------------------------------------------------
+   Listas
+   -------------------------------------------------------------------------- */
+
+.lista {
+  list-style: none;
+  margin: 0 0 var(--esp);
+  padding: 0;
+}
+
+.lista.cartao { padding: 4px 0; }
+
+.lista__linha {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px var(--esp);
+  border-bottom: 1px solid var(--borda);
+}
+
+.lista__linha:last-child { border-bottom: none; }
+
+.lista__principal {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.lista__nome {
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lista__meta { font-size: 12.5px; color: var(--texto-fraco); }
+
+.lista__valor { white-space: nowrap; }
+
+.lista__accoes { display: flex; gap: 6px; flex: none; }
+
+.lista__rodape {
+  font-size: 13.5px;
+  color: var(--texto-fraco);
+  text-align: right;
+  padding: 0 4px;
+}
+
+.seccao { margin-bottom: 28px; }
+
+.cabecalho__titulo--peq { font-size: 16px; }
+
+/* --------------------------------------------------------------------------
+   Botoes auxiliares
+   -------------------------------------------------------------------------- */
+
+.btn--pequeno { padding: 6px 11px; font-size: 13px; }
+
+.btn--destrutivo { background: var(--negativo); color: #fff; }
+.btn--destrutivo:hover:not(:disabled) { background: #E4594D; }
+
+.vazio__alternativa { text-align: center; margin-top: -8px; }
+
+.campo__ajuda {
+  display: block;
+  font-size: 12.5px;
+  color: var(--texto-fraco);
+  margin-top: 6px;
+}
+
+/* --------------------------------------------------------------------------
+   Janelas de dialogo
+   -------------------------------------------------------------------------- */
+
+.dialogo {
+  width: min(420px, calc(100vw - 32px));
+  padding: 22px;
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  background: var(--superficie);
+  color: var(--texto);
+}
+
+.dialogo::backdrop { background: rgba(8, 10, 14, .68); }
+
+.dialogo__titulo { font-size: 17px; margin-bottom: 16px; }
+
+.dialogo__texto {
+  color: var(--texto-fraco);
+  font-size: 14.5px;
+  margin-bottom: 20px;
+}
+
+.dialogo__accoes {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+/* Paleta de cores */
+
+.paleta { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.paleta__cor {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+}
+
+.paleta__cor--activa {
+  border-color: var(--texto);
+  box-shadow: 0 0 0 2px var(--superficie), 0 0 0 4px var(--texto);
+}
+
+/* --------------------------------------------------------------------------
+   Movimentos
+   -------------------------------------------------------------------------- */
+
+.movimento__topo {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.movimento__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 9px;
+  font-size: 12.5px;
+  color: var(--texto-fraco);
+}
+
+.etiqueta-marca {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 1px 8px 1px 6px;
+  border: 1px solid var(--borda);
+  border-radius: 99px;
+  font-size: 11.5px;
+}
+
+/* Um movimento fora da análise fica visualmente recuado. */
+.movimento:has(.oculto) .lista__nome,
+.movimento:has(.oculto) .lista__valor { opacity: .62; }
+
+/* --------------------------------------------------------------------------
+   Filtros e paginação
+   -------------------------------------------------------------------------- */
+
+.filtros {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.filtros input,
+.filtros select {
+  font: inherit;
+  font-size: 13.5px;
+  width: 100%;
+  padding: 8px 10px;
+  color: var(--texto);
+  background: var(--bg);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio-peq);
+  font-variant-numeric: tabular-nums;
+}
+
+.filtros input[type="search"] { grid-column: 1 / -1; }
+
+@media (min-width: 700px) {
+  .filtros { grid-template-columns: repeat(4, 1fr); }
+  .filtros input[type="search"] { grid-column: span 2; }
+}
+
+.paginacao {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 4px;
+}
+
+.paginacao__conta {
+  font-size: 13px;
+  color: var(--texto-fraco);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --------------------------------------------------------------------------
+   Campos extra do formulário
+   -------------------------------------------------------------------------- */
+
+.campo--interruptor {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.campo--interruptor input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  accent-color: var(--destaque);
+}
+
+.campo--interruptor .campo__etiqueta { margin: 0; color: var(--texto); font-size: 14.5px; }
+
+/* Campo que depende de um interruptor desligado. */
+.campo--inactivo { opacity: .45; pointer-events: none; }
+
+.escolha-etiquetas { display: flex; flex-wrap: wrap; gap: 7px; }
+
+.etiqueta-opcao {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font: inherit;
+  font-size: 13px;
+  padding: 5px 11px;
+  border: 1px solid var(--borda);
+  border-radius: 99px;
+  background: var(--bg);
+  color: var(--texto-fraco);
+  cursor: pointer;
+}
+
+.etiqueta-opcao--activa {
+  border-color: var(--destaque-alto);
+  background: var(--superficie-2);
+  color: var(--texto);
+}
+
+.dialogo textarea {
+  font: inherit;
+  width: 100%;
+  padding: 10px 12px;
+  color: var(--texto);
+  background: var(--bg);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio-peq);
+  resize: vertical;
+}
+
+/* --------------------------------------------------------------------------
+   Resumo e Orçamento
+   -------------------------------------------------------------------------- */
+
+.contexto {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: var(--esp);
+  flex-wrap: wrap;
+}
+
+.contexto__mes { display: flex; align-items: center; gap: 8px; }
+
+.contexto__rotulo {
+  font-weight: 600;
+  min-width: 9.5em;
+  text-align: center;
+  text-transform: capitalize;
+}
+
+.contexto__conta {
+  font: inherit;
+  font-size: 13.5px;
+  padding: 8px 10px;
+  color: var(--texto);
+  background: var(--bg);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio-peq);
+  max-width: 100%;
+}
+
+.contexto__nota {
+  font-size: 13px;
+  color: var(--texto-fraco);
+  margin-bottom: 10px;
+  padding: 0 4px;
+}
+
+/* Números de topo */
+
+.numeros {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+}
+
+@media (min-width: 560px) {
+  .numeros { grid-template-columns: repeat(3, 1fr); }
+}
+
+.numero { display: flex; flex-direction: column; gap: 3px; }
+
+.numero__rotulo {
+  font-size: 12.5px;
+  color: var(--texto-fraco);
+}
+
+.numero__valor {
+  font-size: 21px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Gráfico */
+
+.grafico { height: 240px; position: relative; }
+
+@media (min-width: 700px) { .grafico { height: 280px; } }
+
+/* Lista de categorias com barra de orçamento */
+
+.categorias { display: flex; flex-direction: column; }
+
+.categoria {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  border-top: 1px solid var(--borda);
+  padding: 13px 2px;
+  cursor: pointer;
+}
+
+.categoria:first-child { border-top: none; }
+.categoria:hover { background: var(--superficie-2); }
+
+.categoria__topo {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.categoria__valores {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  white-space: nowrap;
+}
+
+.categoria__orcamento {
+  font-size: 12.5px;
+  color: var(--texto-fraco);
+  font-variant-numeric: tabular-nums;
+}
+
+.categoria__orcamento--excede { color: var(--aviso); }
+
+/* Orçamento */
+
+.orcamento {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 2px;
+  border-top: 1px solid var(--borda);
+}
+
+.orcamento:first-child { border-top: none; }
+
+.orcamento__topo {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-wrap: wrap;
+}
+
+.orcamento__valores {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.orcamento__nota { font-size: 12.5px; color: var(--texto-fraco); }
+.orcamento__nota--excede { color: var(--aviso); }
+
+.orcamento__accoes { display: flex; gap: 6px; }
+
+.marca {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  padding: 2px 8px;
+  border-radius: 99px;
+  background: var(--superficie-2);
+  border: 1px solid var(--borda);
+  color: var(--texto);
+}
+
+.marca--fraca { color: var(--texto-fraco); }
+
+/* Totais por etiqueta */
+
+.etiqueta-total {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 12px 2px;
+  border-top: 1px solid var(--borda);
+}
+
+.etiqueta-total:first-child { border-top: none; }
+
+.etiqueta-total__topo {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}

@@ -1,0 +1,16 @@
+# Nunca versionar segredos. A chave publishable no supabaseClient.js e segura
+# de expor; qualquer ficheiro .env com a chave secreta / service_role nao e.
+.env
+.env.*
+*.key
+*.pem
+
+# Sistema operativo e editores
+Thumbs.db
+desktop.ini
+.DS_Store
+.vscode/
+.idea/
+
+# Dependencias (a app nao usa build, mas fica a rede de seguranca)
+node_modules/

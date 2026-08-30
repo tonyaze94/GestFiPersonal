@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#12151B">
+  <meta name="color-scheme" content="dark">
+  <meta name="description" content="Gestão de finanças pessoais">
+  <title>GestFi</title>
+
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icons/icon-192.png" sizes="192x192">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- ========================================================================
+     ECRÃ DE ENTRADA
+     ===================================================================== -->
+<div id="vista-entrada" class="entrada" hidden>
+  <main class="entrada__cartao">
+    <h1 class="entrada__marca">GestFi</h1>
+
+    <!-- Passo 1: email e palavra-passe -->
+    <section id="passo-credenciais" hidden>
+      <p class="entrada__sub">Introduza as suas credenciais para continuar.</p>
+      <form id="form-credenciais" novalidate>
+        <label class="campo">
+          <span class="campo__etiqueta">Email</span>
+          <input id="campo-email" type="email" autocomplete="username"
+                 inputmode="email" required>
+        </label>
+        <label class="campo">
+          <span class="campo__etiqueta">Palavra-passe</span>
+          <input id="campo-password" type="password" autocomplete="current-password" required>
+        </label>
+        <button id="btn-entrar" class="btn btn--primario btn--largo" type="submit">Entrar</button>
+      </form>
+    </section>
+
+    <!-- Passo 2: código de verificação de um fator já inscrito -->
+    <section id="passo-codigo" hidden>
+      <p class="entrada__sub">
+        Abra a aplicação de autenticação no telemóvel e introduza o código de 6 dígitos.
+      </p>
+      <form id="form-codigo" novalidate>
+        <label class="campo">
+          <span class="campo__etiqueta">Código de verificação</span>
+          <input id="campo-codigo" type="text" inputmode="numeric" autocomplete="one-time-code"
+                 maxlength="6" pattern="[0-9]{6}" class="campo__codigo" required>
+        </label>
+        <button id="btn-codigo" class="btn btn--primario btn--largo" type="submit">Verificar</button>
+      </form>
+      <button class="btn btn--texto" type="button" data-accao="cancelar-mfa">Cancelar e sair</button>
+    </section>
+
+    <!-- Passo 3: inscrição do segundo fator -->
+    <section id="passo-inscricao" hidden>
+      <h2 class="entrada__titulo">Ativar verificação em dois passos</h2>
+      <p class="entrada__sub">
+        Esta conta ainda não tem segundo fator. Leia o código QR com o Google Authenticator,
+        o Microsoft Authenticator ou o gestor de palavras-passe, e confirme com o código gerado.
+      </p>
+      <div id="qr-mfa" class="qr__caixa"></div>
+      <p class="entrada__segredo">
+        Ou introduza esta chave manualmente:<br>
+        <code id="segredo-mfa">a gerar…</code>
+      </p>
+      <form id="form-inscricao" novalidate>
+        <label class="campo">
+          <span class="campo__etiqueta">Código gerado</span>
+          <input id="campo-inscricao" type="text" inputmode="numeric" autocomplete="one-time-code"
+                 maxlength="6" pattern="[0-9]{6}" class="campo__codigo" required>
+        </label>
+        <button id="btn-inscricao" class="btn btn--primario btn--largo" type="submit">Confirmar e ativar</button>
+      </form>
+      <button class="btn btn--texto" type="button" data-accao="cancelar-mfa">Cancelar e sair</button>
+    </section>
+  </main>
+</div>
+
+<!-- ========================================================================
+     APLICAÇÃO
+     ===================================================================== -->
+<div id="vista-app" class="app" hidden>
+
+  <!-- Navegação: barra lateral em ecrã largo, barra inferior em telemóvel -->
+  <nav class="nav" aria-label="Navegação principal">
+    <span class="nav__marca">GestFi</span>
+    <a class="nav__item" href="#/dashboard" data-vista="dashboard">
+      <svg class="nav__icone" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 13h8V3H3zm0 8h8v-6H3zm10 0h8V11h-8zm0-18v6h8V3z"/></svg>
+      <span>Resumo</span>
+    </a>
+    <a class="nav__item" href="#/movimentos" data-vista="movimentos">
+      <svg class="nav__icone" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h12v2H3z"/></svg>
+      <span>Movimentos</span>
+    </a>
+    <a class="nav__item" href="#/orcamentos" data-vista="orcamentos">
+      <svg class="nav__icone" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4V10H4zm6 0h4V4h-4zm6 0h4v-7h-4z"/></svg>
+      <span>Orçamento</span>
+    </a>
+    <a class="nav__item" href="#/contas" data-vista="contas">
+      <svg class="nav__icone" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6a2 2 0 0 1 2-2h11v4H5a2 2 0 0 1-2-2m0 3.7c.6.3 1.3.3 2 .3h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM17 15a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3"/></svg>
+      <span>Contas</span>
+    </a>
+    <button id="btn-sair" class="nav__item nav__item--sair" type="button">
+      <svg class="nav__icone" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h4v-2H6V6h4zm5.6 3L14 8.4 16.6 11H9v2h7.6L14 15.6 15.6 17 21 12z"/></svg>
+      <span>Sair</span>
+    </button>
+  </nav>
+
+  <main id="conteudo" class="conteudo" tabindex="-1">
+    <!-- preenchido pelo encaminhador em js/app.js -->
+  </main>
+</div>
+
+<div id="aviso" class="aviso" role="status" aria-live="polite"></div>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
