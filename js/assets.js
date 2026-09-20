@@ -1151,6 +1151,30 @@ async function montarAnalise(alvo) {
 // Configuracoes -- grupos, parceiros e categorias
 // -----------------------------------------------------------------------------
 
+function seccaoCategoriasAtivos(titulo, tipo, categorias, recarregar) {
+  return el('section', { class: 'seccao' }, [
+    el('div', { class: 'cabecalho' }, [
+      el('h2', { class: 'cabecalho__titulo cabecalho__titulo--peq', text: titulo }),
+      el('button', { class: 'btn btn--pequeno', type: 'button', text: 'Adicionar',
+        onclick: () => novaCategoria(tipo, recarregar) }),
+    ]),
+    categorias.length
+      ? el('ul', { class: 'lista cartao' }, categorias.map((c) => el('li', { class: 'lista__linha' }, [
+          el('div', { class: 'lista__principal' }, [
+            el('span', { class: 'chip' }, [
+              el('span', { class: 'chip__ponto', style: 'background:' + (c.color || '#6B7280') }),
+              el('span', { class: 'lista__nome', text: c.name }),
+            ]),
+          ]),
+          el('div', { class: 'lista__accoes' }, [
+            el('button', { class: 'btn btn--pequeno', type: 'button', text: 'Editar', onclick: () => editarCategoria(c, recarregar) }),
+            el('button', { class: 'btn btn--pequeno btn--perigo', type: 'button', text: 'Apagar', onclick: () => apagarCategoria(c, recarregar) }),
+          ]),
+        ])))
+      : el('div', { class: 'cartao' }, [el('p', { class: 'vazio__texto', text: 'Nenhuma categoria deste tipo.' })]),
+  ]);
+}
+
 async function montarConfig(alvo) {
   async function recarregar() {
     const [grupos, parceiros, categorias] = await Promise.all([
@@ -1190,25 +1214,8 @@ async function montarConfig(alvo) {
         ]))) : el('div', { class: 'cartao' }, [el('p', { class: 'vazio__texto', text: 'Nenhum parceiro.' })]),
       ]),
 
-      el('section', { class: 'seccao' }, [
-        el('div', { class: 'cabecalho' }, [
-          el('h2', { class: 'cabecalho__titulo cabecalho__titulo--peq', text: 'Categorias' }),
-          el('button', { class: 'btn btn--pequeno', type: 'button', text: 'Adicionar', onclick: () => novaCategoria(recarregar) }),
-        ]),
-        categorias.length ? el('ul', { class: 'lista cartao' }, categorias.map((c) => el('li', { class: 'lista__linha' }, [
-          el('div', { class: 'lista__principal' }, [
-            el('span', { class: 'chip' }, [
-              el('span', { class: 'chip__ponto', style: 'background:' + (c.color || '#6B7280') }),
-              el('span', { class: 'lista__nome', text: c.name }),
-            ]),
-            el('span', { class: 'marca' + (c.kind === 'custo' ? '' : ' marca--fraca'), text: c.kind }),
-          ]),
-          el('div', { class: 'lista__accoes' }, [
-            el('button', { class: 'btn btn--pequeno', type: 'button', text: 'Editar', onclick: () => editarCategoria(c, recarregar) }),
-            el('button', { class: 'btn btn--pequeno btn--perigo', type: 'button', text: 'Apagar', onclick: () => apagarCategoria(c, recarregar) }),
-          ]),
-        ]))) : el('div', { class: 'cartao' }, [el('p', { class: 'vazio__texto', text: 'Nenhuma categoria.' })]),
-      ]),
+      seccaoCategoriasAtivos('Custos', 'custo', categorias.filter((c) => c.kind === 'custo'), recarregar),
+      seccaoCategoriasAtivos('Receitas', 'receita', categorias.filter((c) => c.kind === 'receita'), recarregar),
     );
     alvo.replaceChildren(fragmento);
   }
@@ -1255,10 +1262,10 @@ function camposCategoriaAtivos(categoria = {}) {
   ];
 }
 
-async function novaCategoria(recarregar) {
+async function novaCategoria(tipo, recarregar) {
   const valores = await dialogoFormulario({
-    titulo: 'Nova categoria',
-    campos: camposCategoriaAtivos(),
+    titulo: 'Nova categoria de ' + (tipo === 'receita' ? 'receita' : 'custo'),
+    campos: camposCategoriaAtivos({ kind: tipo }),
     confirmar: 'Criar categoria',
   });
   if (!valores) return;
