@@ -5,7 +5,7 @@
 // antiga "anon key"). E segura de expor num repositorio publico -- e desenhada
 // para isso, tal como em qualquer app Supabase ou app movel nativa.
 //
-// A protecao real dos dados e o Row Level Security, ativo nas 6 tabelas, que
+// A protecao real dos dados e o Row Level Security, ativo nas 13 tabelas, que
 // restringe todas as operacoes a auth.uid() = user_id.
 //
 // NUNCA colocar aqui (nem em qualquer outro ficheiro do repositorio) a chave

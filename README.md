@@ -11,7 +11,7 @@ autenticação na Supabase. Instalável como PWA no telemóvel e no PC.
 
 O código é público; os dados não são.
 
-- **Row Level Security** ativo nas 6 tabelas, com políticas que restringem
+- **Row Level Security** ativo nas 13 tabelas, com políticas que restringem
   todas as operações a `auth.uid() = user_id`. É esta a proteção real dos
   dados — não o repositório ser público ou privado.
 - A chave em `js/supabaseClient.js` é a **publishable** (equivalente moderno da

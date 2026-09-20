@@ -5,6 +5,10 @@
 *.key
 *.pem
 
+# Exportacoes de dados (ex: sql/migrate_assets.sql gera CSVs com dados reais
+# para carregar na base -- nunca ficam versionados)
+*.csv
+
 # Sistema operativo e editores
 Thumbs.db
 desktop.ini
