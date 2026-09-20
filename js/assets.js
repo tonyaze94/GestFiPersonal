@@ -124,8 +124,9 @@ async function montarResumo(alvo) {
       else minhaReceitaPorAtivo[m.asset_id] += vp;
     }
 
-    let investidoCarteira = 0, lucroPrevistoTotal = 0, balancoTotal = 0, emCarteiraCount = 0;
-    const porGrupo = new Map(grupos.map((g) => [g.id, { investido: 0, lucroPrevisto: 0, balanco: 0, carteira: 0 }]));
+    let investidoCarteira = 0, lucroPrevistoTotal = 0, lucroRealizado = 0, balancoTotal = 0, emCarteiraCount = 0;
+    const porGrupo = new Map(grupos.map((g) => [g.id,
+      { investido: 0, lucroPrevisto: 0, lucroRealizado: 0, balanco: 0, carteira: 0 }]));
     for (const a of todosAtivos) {
       const custo = meuCustoPorAtivo[a.id] || 0;
       const receita = minhaReceitaPorAtivo[a.id] || 0;
@@ -142,6 +143,13 @@ async function montarResumo(alvo) {
           acc.investido += custo;
           if (lucro !== null) acc.lucroPrevisto += lucro;
         }
+      } else {
+        // Ja vendido (ou trocado): a diferenca entre o que recebi e o que
+        // gastei neste ativo e lucro real, ja fechado -- ao contrario do
+        // "balanco total", que baixa enquanto houver dinheiro parado em
+        // ativos ainda por vender.
+        lucroRealizado += receita - custo;
+        if (acc) acc.lucroRealizado += receita - custo;
       }
     }
 
@@ -151,10 +159,14 @@ async function montarResumo(alvo) {
       el('div', { class: 'cabecalho' }, [el('h1', { class: 'cabecalho__titulo', text: 'Ativos' })]),
       el('div', { class: 'numeros cartao' }, [
         cartaoNumero('Ativos em carteira', String(emCarteiraCount)),
-        cartaoNumero('Meu investido', formatMoney(investidoCarteira)),
-        cartaoNumero('Meu lucro previsto', formatMoney(lucroPrevistoTotal), classeValor(lucroPrevistoTotal)),
-        cartaoNumero('Meu balanço total', formatMoney(balancoTotal), classeValor(balancoTotal)),
+        cartaoNumero('Meu investido (por vender)', formatMoney(investidoCarteira)),
+        cartaoNumero('Meu lucro previsto (por vender)', formatMoney(lucroPrevistoTotal), classeValor(lucroPrevistoTotal)),
+        cartaoNumero('Meu lucro já realizado', formatMoney(lucroRealizado, { sinal: true }), classeValor(lucroRealizado)),
       ]),
+      el('p', { class: 'contexto__nota',
+        text: 'O investido em ativos por vender conta a menos até serem vendidos — não é dinheiro perdido, é '
+            + 'capital parado. Balanço agregado (realizado − investido por vender): '
+            + formatMoney(balancoTotal, { sinal: true }) + '.' }),
     );
 
     if (!grupos.length) {
@@ -180,7 +192,8 @@ async function montarResumo(alvo) {
               text: acc.carteira + ' em carteira · investido ' + formatMoney(acc.investido) }),
           ]),
           el('div', { class: 'lista__accoes' }, [
-            el('span', { class: classeValor(acc.balanco) + ' lista__valor', text: formatMoney(acc.balanco, { sinal: true }) }),
+            el('span', { class: classeValor(acc.lucroRealizado) + ' lista__valor',
+              text: formatMoney(acc.lucroRealizado, { sinal: true }) }),
             el('button', { class: 'btn btn--pequeno', type: 'button', text: 'Editar',
               onclick: () => editarGrupo(g, recarregar) }),
           ]),
