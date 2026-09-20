@@ -906,3 +906,207 @@ p { margin: 0; }
   justify-content: space-between;
   gap: 12px;
 }
+
+/* --------------------------------------------------------------------------
+   Ativos -- grupos, ativos e a divisao do dinheiro com parceiros
+   -------------------------------------------------------------------------- */
+
+.grelha2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.grelha2__item {
+  background: var(--bg);
+  border-radius: var(--raio-peq);
+  padding: 8px;
+  text-align: center;
+}
+
+.grelha2__rotulo {
+  font-size: 10px;
+  color: var(--texto-fraco);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+.grelha2__valor {
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  margin-top: 2px;
+}
+
+.ativo-cartao {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  padding: 14px;
+  margin-bottom: 10px;
+  cursor: pointer;
+}
+
+.ativo-cartao:hover { border-color: var(--destaque-alto); }
+
+.ativo-cartao__topo {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.ativo-cartao__nome { font-weight: 600; }
+.ativo-cartao__desc { font-size: 12.5px; color: var(--texto-fraco); margin-top: 2px; }
+
+.separador {
+  text-align: center;
+  font-size: 11.5px;
+  color: var(--texto-fraco);
+  padding: 10px 0 6px;
+  border-top: 1px solid var(--borda);
+  margin-top: 6px;
+}
+
+/* Alternador de dois botoes (custo/receita, tipo de movimento) */
+
+.alternador {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.alternador__opcao {
+  padding: 10px;
+  border-radius: var(--raio-peq);
+  border: 1px solid var(--borda);
+  background: var(--bg);
+  color: var(--texto-fraco);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.alternador__opcao--custo-activo { background: rgba(217,72,60,.12); border-color: var(--negativo); color: var(--negativo); }
+.alternador__opcao--receita-activo { background: rgba(31,157,107,.12); border-color: var(--positivo); color: var(--positivo); }
+
+/* Pilulas de parceiro num movimento */
+
+.pilulas { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+
+/* Divisao do valor entre a minha parte e os parceiros */
+
+.divisao {
+  background: var(--bg);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio-peq);
+  padding: 12px;
+  margin-bottom: 14px;
+}
+
+.divisao__cabecalho {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.divisao__titulo {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--texto-fraco);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+.divisao__linha {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--borda);
+}
+
+.divisao__linha:last-child { border-bottom: none; }
+
+.divisao__nome { font-size: 13.5px; flex: 1; min-width: 0; }
+
+.divisao__valor {
+  width: 104px;
+  padding: 7px 9px;
+  font: inherit;
+  font-size: 13.5px;
+  text-align: right;
+  color: var(--texto);
+  background: var(--superficie-2);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio-peq);
+  font-variant-numeric: tabular-nums;
+}
+
+.divisao__remover {
+  background: none;
+  border: none;
+  color: var(--texto-fraco);
+  font-size: 17px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 0 0 4px;
+}
+
+.divisao__diferenca {
+  margin-top: 10px;
+  padding: 7px 10px;
+  border-radius: var(--raio-peq);
+  font-size: 12.5px;
+  font-weight: 500;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.divisao__diferenca--ok { background: rgba(31,157,107,.12); color: var(--positivo); }
+.divisao__diferenca--erro { background: rgba(217,72,60,.12); color: var(--negativo); }
+
+/* Percentagens de lucro por parceiro, na ficha do ativo */
+
+.percentagens__linha {
+  display: grid;
+  grid-template-columns: auto 1fr 76px;
+  gap: 8px;
+  align-items: center;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--borda);
+}
+
+.percentagens__linha:last-child { border-bottom: none; }
+.percentagens__linha input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--destaque); }
+
+.percentagens__pct {
+  width: 76px;
+  padding: 6px 8px;
+  font: inherit;
+  font-size: 13px;
+  text-align: right;
+  color: var(--texto);
+  background: var(--superficie-2);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio-peq);
+}
+
+.percentagens__pct:disabled { opacity: .4; }
+
+.percentagens__resumo {
+  font-size: 12px;
+  color: var(--texto-fraco);
+  margin-top: 8px;
+  font-variant-numeric: tabular-nums;
+}

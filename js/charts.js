@@ -68,6 +68,47 @@ export function anelPorCategoria(canvas, dados, formatar) {
 }
 
 /**
+ * Linhas de evolucao acumulada, uma por serie (ex: uma por grupo de ativos).
+ * Eixo por categorias (sem adaptador de datas) -- rotulos ja formatados e
+ * partilhados por todas as series, cada uma com um valor por rotulo.
+ * @param {Array} rotulos  ['jan 26', 'fev 26', ...]
+ * @param {Array} series   [{ nome, cor, valores: [numero, ...] }]
+ */
+export function linhasEvolucao(canvas, rotulos, series, formatar) {
+  preparar(canvas);
+  const grafico = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels: rotulos,
+      datasets: series.map((s) => ({
+        label: s.nome,
+        data: s.valores,
+        borderColor: s.cor,
+        backgroundColor: s.cor,
+        pointRadius: 2,
+        borderWidth: 2,
+        tension: 0,
+      })),
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'nearest', axis: 'x', intersect: false },
+      scales: {
+        x: { grid: { color: COR_BORDA }, ticks: { color: COR_FRACA } },
+        y: { grid: { color: COR_BORDA }, ticks: { color: COR_FRACA, callback: (v) => formatar(v) } },
+      },
+      plugins: {
+        legend: { labels: { boxWidth: 10, boxHeight: 10, color: COR_TEXTO } },
+        tooltip: { callbacks: { label: (ctx) => ' ' + ctx.dataset.label + ': ' + formatar(ctx.parsed.y) } },
+      },
+    },
+  });
+  activos.set(canvas, grafico);
+  return grafico;
+}
+
+/**
  * Barras horizontais: gasto real contra orcamento, por categoria.
  * @param {Array} dados  [{ nome, gasto, orcamento, cor }]
  */

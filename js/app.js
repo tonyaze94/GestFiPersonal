@@ -48,6 +48,14 @@ const vistas = {
     nav: 'contas',
     montar: async (alvo) => (await import('./tags.js')).montarEtiquetas(alvo),
   },
+  ativos: {
+    titulo: 'Ativos',
+    nav: 'ativos',
+    // sub-navegacao propria (#/ativos/grupo/<id>, /ativo/<id>, /analise, /config):
+    // montarAtivos le o hash completo, por isso e chamada de novo em qualquer
+    // sub-mudanca, sem precisar de entradas separadas neste registo.
+    montar: async (alvo) => (await import('./assets.js')).montarAtivos(alvo),
+  },
 };
 
 /** Nome do ecra a partir do endereco (#/movimentos -> movimentos). */

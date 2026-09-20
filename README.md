@@ -62,6 +62,11 @@ domínio às `Redirect URLs` da Supabase.
 triggers, políticas de RLS e as funções de agregação (`rpc_account_balances`,
 `rpc_month_summary`, `rpc_category_spend`, `rpc_tag_spend`).
 
+`sql/schema_assets.sql` acrescenta o módulo Ativos (ver abaixo), com o mesmo
+padrão de RLS. `sql/migrate_assets.sql` foi o script único usado para migrar
+os dados do projeto Supabase separado "Ativos" para esta base — mantido como
+registo histórico, não precisa de correr outra vez.
+
 ## Estrutura
 
 ```
@@ -73,7 +78,7 @@ js/supabaseClient.js  URL e chave do projeto (ponto único de configuração)
 js/format.js          formatação de dinheiro e datas
 js/ui.js              utilitários de interface
 js/modal.js           janelas de diálogo
-js/db.js              acesso a dados e agregações
+js/db.js              acesso a dados e agregações (finanças + ativos)
 js/auth.js            entrada, MFA e sessão
 js/app.js             arranque e encaminhamento
 js/dashboard.js       ecrã Resumo
@@ -82,9 +87,31 @@ js/budgets.js         ecrã Orçamento
 js/accounts.js        ecrã Contas
 js/categories.js      ecrã Categorias
 js/tags.js            ecrã Etiquetas
+js/assets.js          ecrã Ativos (grupos, ativos, parceiros, troca, análise)
 js/charts.js          gráficos (Chart.js)
-sql/schema.sql        esquema completo
+sql/schema.sql         esquema principal (contas, movimentos, orçamentos)
+sql/schema_assets.sql  esquema do módulo Ativos
+sql/migrate_assets.sql script de migração usado uma única vez
 ```
+
+## Módulo Ativos
+
+Acompanha investimentos partilhados com parceiros (ex: compra e venda de
+carros, a dividir o lucro por percentagem). Era uma app à parte
+(`gestao-ativos.html`, noutro projeto Supabase) e foi integrada aqui: mesma
+base de dados, mesmo login, mesmo layout.
+
+- Sub-navegação por hash (`#/ativos`, `#/ativos/grupo/<id>`,
+  `#/ativos/ativo/<id>`, `#/ativos/analise`, `#/ativos/config`). Cada passo é
+  um `<a href="#/...">` ou uma alteração normal de `location.hash`, por isso o
+  botão Voltar do browser anda para trás dentro da app em vez de a fechar ou
+  saltar para o ecrã de login — era esse o defeito da app antiga, que nunca
+  tocava no histórico do browser.
+- Apagar um grupo ou um ativo apaga em cascata (definido no schema) os seus
+  ativos/movimentos; apagar um parceiro não é cascata — as divisões que o
+  referenciam são removidas primeiro, para o movimento continuar a existir.
+- "Troca" (trade-in): vende o ativo atual e usa o resultado como custo
+  inicial de um ativo novo, dividido pelos mesmos parceiros.
 
 ## Notas de implementação
 

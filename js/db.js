@@ -324,3 +324,194 @@ export async function alternarOculto(id, oculto, motivo) {
     excluded_reason: oculto ? (motivo || null) : null,
   });
 }
+
+// -----------------------------------------------------------------------------
+// Ativos -- acompanhamento de investimentos partilhados com parceiros.
+//
+// Ao contrario das contas do dia-a-dia, aqui o dinheiro que entra e um custo
+// e o que sai e receita (ver TIPOS_MOVIMENTO_ATIVO). Apagar um grupo ou um
+// ativo apaga em cascata tudo o que depende dele (definido no schema), por
+// isso essas duas funcoes sao so um DELETE -- nao ha logica de cascata aqui.
+// -----------------------------------------------------------------------------
+
+export const TIPOS_MOVIMENTO_ATIVO = [
+  { valor: 'custo',   etiqueta: 'Custo' },
+  { valor: 'receita', etiqueta: 'Receita' },
+];
+
+export const ESTADOS_ATIVO = [
+  { valor: 'em_carteira', etiqueta: 'Em carteira' },
+  { valor: 'vendido',     etiqueta: 'Vendido' },
+];
+
+// --- Grupos --------------------------------------------------------------
+
+export async function listarGruposAtivos() {
+  return verificar(await supabase.from('asset_groups').select('id, name, description, created_at')
+    .order('name', { ascending: true }));
+}
+
+export async function criarGrupoAtivos(dados) {
+  return verificar(await supabase.from('asset_groups').insert(dados).select().single());
+}
+
+export async function actualizarGrupoAtivos(id, dados) {
+  return verificar(await supabase.from('asset_groups').update(dados).eq('id', id).select().single());
+}
+
+export async function apagarGrupoAtivos(id) {
+  return verificar(await supabase.from('asset_groups').delete().eq('id', id));
+}
+
+// --- Parceiros -------------------------------------------------------------
+
+export async function listarParceirosAtivos() {
+  return verificar(await supabase.from('asset_partners').select('id, name, created_at')
+    .order('name', { ascending: true }));
+}
+
+export async function criarParceiroAtivos(dados) {
+  return verificar(await supabase.from('asset_partners').insert(dados).select().single());
+}
+
+export async function actualizarParceiroAtivos(id, dados) {
+  return verificar(await supabase.from('asset_partners').update(dados).eq('id', id).select().single());
+}
+
+/** Ao contrario do grupo/ativo, apagar um parceiro nao e cascata no schema:
+ * as divisoes que o referenciam sao removidas primeiro, para o movimento e
+ * o ativo continuarem a existir sem esse parceiro. */
+export async function apagarParceiroAtivos(id) {
+  verificar(await supabase.from('asset_movement_partners').delete().eq('partner_id', id));
+  verificar(await supabase.from('asset_partner_shares').delete().eq('partner_id', id));
+  return verificar(await supabase.from('asset_partners').delete().eq('id', id));
+}
+
+// --- Categorias --------------------------------------------------------------
+
+export async function listarCategoriasAtivos(tipo) {
+  let consulta = supabase.from('asset_categories').select('id, name, kind, created_at')
+    .order('name', { ascending: true });
+  if (tipo) consulta = consulta.eq('kind', tipo);
+  return verificar(await consulta);
+}
+
+export async function criarCategoriaAtivos(dados) {
+  return verificar(await supabase.from('asset_categories').insert(dados).select().single());
+}
+
+export async function actualizarCategoriaAtivos(id, dados) {
+  return verificar(await supabase.from('asset_categories').update(dados).eq('id', id).select().single());
+}
+
+/** Recusa apagar se houver movimentos a usar a categoria -- tal como nas categorias normais. */
+export async function contarMovimentosDaCategoriaAtivos(id) {
+  const { count, error } = await supabase.from('asset_movements')
+    .select('id', { count: 'exact', head: true }).eq('category_id', id);
+  if (error) throw error;
+  return count ?? 0;
+}
+
+export async function apagarCategoriaAtivos(id) {
+  return verificar(await supabase.from('asset_categories').delete().eq('id', id));
+}
+
+/** Devolve a categoria com este nome/tipo, criando-a se ainda nao existir
+ * (usada na troca, que regista sempre uma categoria "Troca"). */
+export async function obterOuCriarCategoriaAtivos(nome, tipo) {
+  const { data } = await supabase.from('asset_categories').select('id')
+    .eq('name', nome).eq('kind', tipo).limit(1).maybeSingle();
+  if (data) return data.id;
+  const nova = await criarCategoriaAtivos({ name: nome, kind: tipo });
+  return nova.id;
+}
+
+// --- Ativos ------------------------------------------------------------------
+
+export async function listarAtivos(grupoId) {
+  return verificar(await supabase.from('assets')
+    .select('id, group_id, name, description, status, acquired_on, sold_on,'
+          + ' expected_sale_value, profit_pct, sale_reason, created_at')
+    .eq('group_id', grupoId)
+    .order('status', { ascending: true })
+    .order('acquired_on', { ascending: true }));
+}
+
+/** Todos os ativos, para as agregacoes do resumo (sem filtrar por grupo). */
+export async function listarTodosAtivos() {
+  return verificar(await supabase.from('assets')
+    .select('id, status, group_id, expected_sale_value, profit_pct'));
+}
+
+export async function obterAtivo(id) {
+  return verificar(await supabase.from('assets').select('*').eq('id', id).single());
+}
+
+export async function criarAtivo(dados) {
+  return verificar(await supabase.from('assets').insert(dados).select().single());
+}
+
+export async function actualizarAtivo(id, dados) {
+  return verificar(await supabase.from('assets').update(dados).eq('id', id).select().single());
+}
+
+/** Apaga o ativo e, em cascata (definido no schema), os seus movimentos,
+ * divisoes de movimento e percentagens de parceiro. */
+export async function apagarAtivo(id) {
+  return verificar(await supabase.from('assets').delete().eq('id', id));
+}
+
+// --- Percentagens de parceiro por ativo --------------------------------------
+
+export async function listarPartesAtivo(ativoId) {
+  const linhas = verificar(await supabase.from('asset_partner_shares')
+    .select('partner_id, profit_pct, asset_partners(name)').eq('asset_id', ativoId));
+  return linhas.map((l) => ({ partner_id: l.partner_id, profit_pct: Number(l.profit_pct),
+    name: l.asset_partners ? l.asset_partners.name : '?' }));
+}
+
+/** Substitui por completo a divisao de lucro do ativo entre parceiros. */
+export async function definirPartesAtivo(ativoId, partes) {
+  verificar(await supabase.from('asset_partner_shares').delete().eq('asset_id', ativoId));
+  const limpas = partes.filter((p) => p.partner_id)
+    .map((p) => ({ asset_id: ativoId, partner_id: p.partner_id, profit_pct: p.profit_pct }));
+  if (limpas.length) verificar(await supabase.from('asset_partner_shares').insert(limpas));
+}
+
+// --- Movimentos de ativos -----------------------------------------------------
+
+export async function listarMovimentosAtivo(ativoId) {
+  return verificar(await supabase.from('asset_movements')
+    .select('id, category_id, kind, amount, own_amount, occurred_on, description,'
+          + ' asset_categories(name),'
+          + ' asset_movement_partners(id, partner_id, amount, asset_partners(name))')
+    .eq('asset_id', ativoId)
+    .order('occurred_on', { ascending: false })
+    .order('created_at', { ascending: false }));
+}
+
+/** Todos os movimentos de todos os ativos, para o resumo e a analise. */
+export async function listarTodosMovimentosAtivos() {
+  return verificar(await supabase.from('asset_movements')
+    .select('asset_id, kind, amount, own_amount, occurred_on, assets(group_id)'));
+}
+
+export async function criarMovimentoAtivo(dados) {
+  return verificar(await supabase.from('asset_movements').insert(dados).select().single());
+}
+
+export async function actualizarMovimentoAtivo(id, dados) {
+  return verificar(await supabase.from('asset_movements').update(dados).eq('id', id).select().single());
+}
+
+export async function apagarMovimentoAtivo(id) {
+  return verificar(await supabase.from('asset_movements').delete().eq('id', id));
+}
+
+/** Substitui por completo a divisao de um movimento entre parceiros. */
+export async function definirParceirosMovimento(movimentoId, partes) {
+  verificar(await supabase.from('asset_movement_partners').delete().eq('movement_id', movimentoId));
+  const limpas = partes.filter((p) => p.amount > 0.009)
+    .map((p) => ({ movement_id: movimentoId, partner_id: p.partner_id, amount: p.amount }));
+  if (limpas.length) verificar(await supabase.from('asset_movement_partners').insert(limpas));
+}
