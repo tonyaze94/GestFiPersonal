@@ -86,13 +86,6 @@ function linhaResumo(rotulo, valor) {
   ]);
 }
 
-function itemGrelha(rotulo, valor, classeExtra = '') {
-  return el('div', { class: 'grelha2__item' }, [
-    el('div', { class: 'grelha2__rotulo', text: rotulo }),
-    el('div', { class: 'grelha2__valor ' + classeExtra, text: valor }),
-  ]);
-}
-
 function cabecalhoComVoltar(voltarPara, tituloVoltar, titulo, accoesExtra = []) {
   return el('div', {}, [
     el('a', { class: 'btn btn--pequeno', href: '#/' + voltarPara, text: '‹ ' + tituloVoltar,
@@ -158,10 +151,10 @@ async function montarResumo(alvo) {
       abas(ABAS_ATIVOS, 'ativos'),
       el('div', { class: 'cabecalho' }, [el('h1', { class: 'cabecalho__titulo', text: 'Ativos' })]),
       el('div', { class: 'numeros cartao' }, [
-        cartaoNumero('Ativos em carteira', String(emCarteiraCount)),
-        cartaoNumero('Meu investido (por vender)', formatMoney(investidoCarteira)),
-        cartaoNumero('Meu lucro previsto (por vender)', formatMoney(lucroPrevistoTotal), classeValor(lucroPrevistoTotal)),
         cartaoNumero('Meu lucro já realizado', formatMoney(lucroRealizado, { sinal: true }), classeValor(lucroRealizado)),
+        cartaoNumero('Meu lucro previsto (por vender)', formatMoney(lucroPrevistoTotal), classeValor(lucroPrevistoTotal)),
+        cartaoNumero('Meu investido (por vender)', formatMoney(investidoCarteira)),
+        cartaoNumero('Ativos em carteira', String(emCarteiraCount)),
       ]),
       el('p', { class: 'contexto__nota',
         text: 'O investido em ativos por vender conta a menos até serem vendidos — não é dinheiro perdido, é '
@@ -183,20 +176,18 @@ async function montarResumo(alvo) {
         el('button', { class: 'btn btn--pequeno', type: 'button', text: 'Adicionar',
           onclick: () => novoGrupo(recarregar) }),
       ]),
-      el('ul', { class: 'lista' }, grupos.map((g) => {
+      el('div', { class: 'ativo-lista' }, grupos.map((g) => {
         const acc = porGrupo.get(g.id);
-        return el('li', { class: 'lista__linha' }, [
-          el('div', { class: 'lista__principal' }, [
-            el('a', { class: 'lista__nome', href: '#/ativos/grupo/' + g.id, text: g.name }),
-            el('span', { class: 'lista__meta',
+        return el('a', { class: 'ativo-linha', href: '#/ativos/grupo/' + g.id,
+          style: 'box-shadow: inset 3px 0 0 0 ' + (acc.lucroRealizado >= 0 ? 'var(--positivo)' : 'var(--negativo)') + ';' }, [
+          el('div', { class: 'ativo-linha__corpo' }, [
+            el('div', { class: 'ativo-linha__topo' }, [el('span', { class: 'ativo-linha__nome', text: g.name })]),
+            el('span', { class: 'ativo-linha__meta',
               text: acc.carteira + ' em carteira · investido ' + formatMoney(acc.investido) }),
           ]),
-          el('div', { class: 'lista__accoes' }, [
-            el('span', { class: classeValor(acc.lucroRealizado) + ' lista__valor',
-              text: formatMoney(acc.lucroRealizado, { sinal: true }) }),
-            el('button', { class: 'btn btn--pequeno', type: 'button', text: 'Editar',
-              onclick: () => editarGrupo(g, recarregar) }),
-          ]),
+          el('span', { class: 'ativo-linha__valor ' + classeValor(acc.lucroRealizado),
+            text: formatMoney(acc.lucroRealizado, { sinal: true }) }),
+          setaDireita(),
         ]);
       })),
     ]));
@@ -289,29 +280,29 @@ async function montarGrupo(alvo, grupoId) {
     };
   }
 
-  function cartaoAtivo(a) {
+  function linhaAtivo(a) {
     const c = calcular(a);
-    return el('a', { class: 'ativo-cartao', href: '#/ativos/ativo/' + a.id }, [
-      el('div', { class: 'ativo-cartao__topo' }, [
-        el('div', {}, [
-          el('div', { class: 'ativo-cartao__nome', text: a.name }),
-          a.description ? el('div', { class: 'ativo-cartao__desc', text: a.description }) : null,
+    const emCarteira = a.status === 'em_carteira';
+    // Em carteira: o numero que importa e' quanto se espera ganhar. Vendido:
+    // o que ja se ganhou de facto. So um numero em destaque -- o resto
+    // (investido, custo, valor previsto) fica na ficha do ativo.
+    const destaque = emCarteira ? c.lucroPrevistoProprio : c.lucroRealProprio;
+    const meta = emCarteira
+      ? 'Investido ' + formatMoney(c.custoP)
+      : (c.lucroRealProprio >= 0 ? 'Vendido com lucro' : 'Vendido com perda');
+
+    return el('a', { class: 'ativo-linha', href: '#/ativos/ativo/' + a.id,
+      style: 'box-shadow: inset 3px 0 0 0 ' + (destaque == null ? 'var(--borda)' : (destaque >= 0 ? 'var(--positivo)' : 'var(--negativo)')) + ';' }, [
+      el('div', { class: 'ativo-linha__corpo' }, [
+        el('div', { class: 'ativo-linha__topo' }, [
+          el('span', { class: 'ativo-linha__nome', text: a.name }),
+          !emCarteira ? el('span', { class: 'marca marca--fraca', text: 'Vendido' }) : null,
         ]),
-        el('span', { class: 'marca' + (a.status === 'em_carteira' ? '' : ' marca--fraca'),
-          text: a.status === 'em_carteira' ? 'Em carteira' : 'Vendido' }),
+        el('span', { class: 'ativo-linha__meta', text: meta }),
       ]),
-      el('div', { class: 'grelha2' }, a.status === 'em_carteira' ? [
-        itemGrelha('Meu custo', formatMoney(c.custoP)),
-        itemGrelha('Meu lucro previsto', c.lucroPrevistoProprio != null ? formatMoney(c.lucroPrevistoProprio) : '—',
-          c.lucroPrevistoProprio != null ? classeValor(c.lucroPrevistoProprio) : ''),
-        itemGrelha('Valor previsto venda', a.expected_sale_value != null ? formatMoney(a.expected_sale_value) : '—'),
-        itemGrelha('Total investido', formatMoney(c.custo)),
-      ] : [
-        itemGrelha('Minha receita', formatMoney(c.receitaP)),
-        itemGrelha('Meu lucro real', formatMoney(c.lucroRealProprio), classeValor(c.lucroRealProprio)),
-        itemGrelha('Valor vendido', formatMoney(c.receita)),
-        itemGrelha('Lucro real do ativo', formatMoney(c.lucroRealTotal), classeValor(c.lucroRealTotal)),
-      ]),
+      el('span', { class: 'ativo-linha__valor ' + (destaque == null ? '' : classeValor(destaque)),
+        text: destaque != null ? formatMoney(destaque, { sinal: true }) : '—' }),
+      setaDireita(),
     ]);
   }
 
@@ -336,14 +327,14 @@ async function montarGrupo(alvo, grupoId) {
     }
 
     fragmento.append(emCarteira.length
-      ? el('div', {}, emCarteira.map(cartaoAtivo))
+      ? el('div', { class: 'ativo-lista' }, emCarteira.map(linhaAtivo))
       : el('p', { class: 'vazio__texto', text: 'Nenhum ativo em carteira.' }));
 
     if (vendidos.length) {
       const visiveis = vendidos.slice(0, offsetVendidos);
       fragmento.append(
         el('div', { class: 'separador', text: 'Vendidos (' + vendidos.length + ')' }),
-        el('div', {}, visiveis.map(cartaoAtivo)),
+        el('div', { class: 'ativo-lista' }, visiveis.map(linhaAtivo)),
       );
       if (offsetVendidos < vendidos.length) {
         fragmento.append(el('button', { class: 'btn btn--largo', type: 'button', text: 'Carregar mais vendidos',
@@ -1060,6 +1051,24 @@ async function iniciarTroca(ativo, grupos, movimentosAtivo, partesAtivo, aoTermi
 // -----------------------------------------------------------------------------
 
 const CORES_GRUPOS = ['#1F9D6B', '#2B5CB8', '#E8A33D', '#D9483C', '#8A5BC4', '#3AA6A6', '#E3C84B', '#C4589B'];
+
+/** el() usa document.createElement e nao serve para SVG (precisa de namespace). */
+function setaDireita() {
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('class', 'ativo-linha__seta');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('aria-hidden', 'true');
+  const path = document.createElementNS(NS, 'path');
+  path.setAttribute('d', 'M9 6l6 6-6 6');
+  path.setAttribute('fill', 'none');
+  path.setAttribute('stroke', 'currentColor');
+  path.setAttribute('stroke-width', '2');
+  path.setAttribute('stroke-linecap', 'round');
+  path.setAttribute('stroke-linejoin', 'round');
+  svg.append(path);
+  return svg;
+}
 
 async function montarAnalise(alvo) {
   const [grupos, movimentos] = await Promise.all([listarGruposAtivos(), listarTodosMovimentosAtivos()]);

@@ -915,36 +915,16 @@ p { margin: 0; }
    Ativos -- grupos, ativos e a divisao do dinheiro com parceiros
    -------------------------------------------------------------------------- */
 
-.grelha2 {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px;
-  margin-top: 10px;
-}
+/* Lista de ativos: uma linha compacta e tocavel por ativo, com uma barra de
+   cor a indicar de imediato se esta a dar lucro ou perda -- pensada primeiro
+   para telemovel, onde e' scroll vertical rapido e nao um dashboard denso. */
 
-.grelha2__item {
-  background: var(--bg);
-  border-radius: var(--raio-peq);
-  padding: 8px;
-  text-align: center;
-}
+.ativo-lista { display: flex; flex-direction: column; gap: 8px; margin-bottom: 4px; }
 
-.grelha2__rotulo {
-  font-size: 10px;
-  color: var(--texto-fraco);
-  text-transform: uppercase;
-  letter-spacing: .04em;
-}
-
-.grelha2__valor {
-  font-size: 13px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  margin-top: 2px;
-}
-
-.ativo-cartao {
-  display: block;
+.ativo-linha {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   width: 100%;
   text-align: left;
   text-decoration: none;
@@ -953,22 +933,42 @@ p { margin: 0; }
   background: var(--superficie);
   border: 1px solid var(--borda);
   border-radius: var(--raio);
-  padding: 14px;
-  margin-bottom: 10px;
+  padding: 13px 14px;
   cursor: pointer;
+  transition: background-color .12s ease, border-color .12s ease;
 }
 
-.ativo-cartao:hover { border-color: var(--destaque-alto); }
+.ativo-linha:hover { background: var(--superficie-2); border-color: var(--destaque-alto); }
+.ativo-linha:active { background: var(--superficie-2); }
 
-.ativo-cartao__topo {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 10px;
+.ativo-linha__corpo { flex: 1; min-width: 0; }
+
+.ativo-linha__topo { display: flex; align-items: center; gap: 8px; margin-bottom: 2px; }
+
+.ativo-linha__nome {
+  font-weight: 600;
+  font-size: 15px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.ativo-cartao__nome { font-weight: 600; }
-.ativo-cartao__desc { font-size: 12.5px; color: var(--texto-fraco); margin-top: 2px; }
+.ativo-linha__meta { font-size: 12.5px; color: var(--texto-fraco); }
+
+.ativo-linha__valor {
+  flex: none;
+  font-size: 16px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.ativo-linha__seta {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  color: var(--texto-fraco);
+}
 
 .separador {
   text-align: center;
