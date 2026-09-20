@@ -749,7 +749,8 @@ async function montarFicha(alvo, ativoId) {
                 text: (mp.asset_partners ? mp.asset_partners.name : '?') + ' ' + formatMoney(mp.amount) }))) : null,
           ]),
           el('div', { class: 'lista__accoes', style: 'flex-direction:column;align-items:flex-end;gap:2px;' }, [
-            el('span', { class: classeValor(m.kind === 'custo' ? -vt : vt), text: formatMoney(vt, { sinal: true }) }),
+            el('span', { class: classeValor(m.kind === 'custo' ? -vt : vt),
+              text: formatMoney(m.kind === 'custo' ? -vt : vt, { sinal: true }) }),
             vp !== vt ? el('span', { class: 'lista__meta', text: 'Minha: ' + formatMoney(vp) }) : null,
           ]),
           el('div', { class: 'lista__accoes' }, [

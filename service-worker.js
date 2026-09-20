@@ -6,7 +6,12 @@
 // Sem Internet a app abre, mas mostra erro ao tentar ler dados.
 // -----------------------------------------------------------------------------
 
-const VERSAO = 'gestfi-v1';
+// Subir esta versao sempre que um ficheiro em cache mude -- o cache-first
+// em baixo so' actualiza em segundo plano (para a proxima vez); sem subir a
+// versao, um ficheiro novo pode importar de um ficheiro antigo ainda em
+// cache da versao anterior (foi o que aconteceu ao acrescentar assets.js:
+// ficou a pedir um export de db.js que a versao em cache ainda nao tinha).
+const VERSAO = 'gestfi-v2';
 
 const ESTATICOS = [
   './',
@@ -27,6 +32,7 @@ const ESTATICOS = [
   './js/dashboard.js',
   './js/budgets.js',
   './js/charts.js',
+  './js/assets.js',
   './icons/icon-192.png',
   './icons/icon-512.png',
 ];
