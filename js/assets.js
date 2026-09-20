@@ -287,16 +287,17 @@ async function montarGrupo(alvo, grupoId) {
         el('span', { class: 'marca' + (a.status === 'em_carteira' ? '' : ' marca--fraca'),
           text: a.status === 'em_carteira' ? 'Em carteira' : 'Vendido' }),
       ]),
-      el('div', { class: 'grelha2' }, [
-        itemGrelha('Valor previsto venda', a.expected_sale_value != null ? formatMoney(a.expected_sale_value) : '—'),
+      el('div', { class: 'grelha2' }, a.status === 'em_carteira' ? [
+        itemGrelha('Meu custo', formatMoney(c.custoP)),
         itemGrelha('Meu lucro previsto', c.lucroPrevistoProprio != null ? formatMoney(c.lucroPrevistoProprio) : '—',
           c.lucroPrevistoProprio != null ? classeValor(c.lucroPrevistoProprio) : ''),
-        itemGrelha('Valor vendido', formatMoney(c.receita)),
+        itemGrelha('Valor previsto venda', a.expected_sale_value != null ? formatMoney(a.expected_sale_value) : '—'),
+        itemGrelha('Total investido', formatMoney(c.custo)),
+      ] : [
         itemGrelha('Minha receita', formatMoney(c.receitaP)),
-        itemGrelha('Total custos', formatMoney(c.custo)),
-        itemGrelha('Meu custo', formatMoney(c.custoP)),
-        itemGrelha('Lucro real do ativo', formatMoney(c.lucroRealTotal), classeValor(c.lucroRealTotal)),
         itemGrelha('Meu lucro real', formatMoney(c.lucroRealProprio), classeValor(c.lucroRealProprio)),
+        itemGrelha('Valor vendido', formatMoney(c.receita)),
+        itemGrelha('Lucro real do ativo', formatMoney(c.lucroRealTotal), classeValor(c.lucroRealTotal)),
       ]),
     ]);
   }
