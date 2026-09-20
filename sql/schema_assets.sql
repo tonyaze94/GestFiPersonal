@@ -26,6 +26,7 @@ create table asset_categories (
   user_id uuid not null references auth.users(id) default auth.uid(),
   name text not null,
   kind text not null check (kind in ('custo','receita')),
+  color text,
   created_at timestamptz not null default now()
 );
 

@@ -390,7 +390,7 @@ export async function apagarParceiroAtivos(id) {
 // --- Categorias --------------------------------------------------------------
 
 export async function listarCategoriasAtivos(tipo) {
-  let consulta = supabase.from('asset_categories').select('id, name, kind, created_at')
+  let consulta = supabase.from('asset_categories').select('id, name, kind, color, created_at')
     .order('name', { ascending: true });
   if (tipo) consulta = consulta.eq('kind', tipo);
   return verificar(await consulta);
@@ -483,7 +483,7 @@ export async function definirPartesAtivo(ativoId, partes) {
 export async function listarMovimentosAtivo(ativoId) {
   return verificar(await supabase.from('asset_movements')
     .select('id, category_id, kind, amount, own_amount, occurred_on, description,'
-          + ' asset_categories(name),'
+          + ' asset_categories(name, color),'
           + ' asset_movement_partners(id, partner_id, amount, asset_partners(name))')
     .eq('asset_id', ativoId)
     .order('occurred_on', { ascending: false })

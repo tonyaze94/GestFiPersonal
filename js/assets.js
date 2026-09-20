@@ -22,7 +22,7 @@ import {
   TIPOS_MOVIMENTO_ATIVO, ESTADOS_ATIVO,
 } from './db.js';
 import { el, avisar, traduzErro, estadoVazio, abas } from './ui.js';
-import { dialogoConfirmar, dialogoFormulario } from './modal.js';
+import { dialogoConfirmar, dialogoFormulario, PALETA } from './modal.js';
 import { formatMoney, formatDate, classeValor, hojeISO, nomeMes } from './format.js';
 import { linhasEvolucao } from './charts.js';
 
@@ -746,7 +746,10 @@ async function montarFicha(alvo, ativoId) {
         const parceirosMov = m.asset_movement_partners || [];
         return el('li', { class: 'lista__linha' }, [
           el('div', { class: 'lista__principal' }, [
-            el('span', { class: 'lista__nome', text: m.asset_categories ? m.asset_categories.name : '—' }),
+            el('span', { class: 'chip' }, [
+              el('span', { class: 'chip__ponto', style: 'background:' + (m.asset_categories?.color || '#6B7280') }),
+              el('span', { class: 'lista__nome', text: m.asset_categories ? m.asset_categories.name : '—' }),
+            ]),
             m.description ? el('span', { class: 'lista__meta', text: m.description }) : null,
             el('span', { class: 'lista__meta', text: formatDate(m.occurred_on) }),
             parceirosMov.length ? el('div', { class: 'pilulas' }, parceirosMov.map((mp) =>
@@ -1194,7 +1197,10 @@ async function montarConfig(alvo) {
         ]),
         categorias.length ? el('ul', { class: 'lista cartao' }, categorias.map((c) => el('li', { class: 'lista__linha' }, [
           el('div', { class: 'lista__principal' }, [
-            el('span', { class: 'lista__nome', text: c.name }),
+            el('span', { class: 'chip' }, [
+              el('span', { class: 'chip__ponto', style: 'background:' + (c.color || '#6B7280') }),
+              el('span', { class: 'lista__nome', text: c.name }),
+            ]),
             el('span', { class: 'marca' + (c.kind === 'custo' ? '' : ' marca--fraca'), text: c.kind }),
           ]),
           el('div', { class: 'lista__accoes' }, [
@@ -1241,32 +1247,38 @@ async function apagarParceiro(parceiro, recarregar) {
   catch (erro) { avisar(traduzErro(erro), 'erro'); }
 }
 
+function camposCategoriaAtivos(categoria = {}) {
+  return [
+    { nome: 'name', etiqueta: 'Nome', tipo: 'text', valor: categoria.name || '', obrigatorio: true, maximo: 60 },
+    { nome: 'kind', etiqueta: 'Tipo', tipo: 'seleccao', valor: categoria.kind || 'custo', opcoes: TIPOS_MOVIMENTO_ATIVO },
+    { nome: 'color', etiqueta: 'Cor', tipo: 'cor', valor: categoria.color || PALETA[0] },
+  ];
+}
+
 async function novaCategoria(recarregar) {
   const valores = await dialogoFormulario({
     titulo: 'Nova categoria',
-    campos: [
-      { nome: 'name', etiqueta: 'Nome', tipo: 'text', valor: '', obrigatorio: true, maximo: 60 },
-      { nome: 'kind', etiqueta: 'Tipo', tipo: 'seleccao', valor: 'custo', opcoes: TIPOS_MOVIMENTO_ATIVO },
-    ],
+    campos: camposCategoriaAtivos(),
     confirmar: 'Criar categoria',
   });
   if (!valores) return;
-  try { await criarCategoriaAtivos({ name: valores.name, kind: valores.kind }); avisar('Categoria criada.', 'sucesso'); await recarregar(); }
-  catch (erro) { avisar(traduzErro(erro), 'erro'); }
+  try {
+    await criarCategoriaAtivos({ name: valores.name, kind: valores.kind, color: valores.color });
+    avisar('Categoria criada.', 'sucesso'); await recarregar();
+  } catch (erro) { avisar(traduzErro(erro), 'erro'); }
 }
 
 async function editarCategoria(categoria, recarregar) {
   const valores = await dialogoFormulario({
     titulo: 'Editar categoria',
-    campos: [
-      { nome: 'name', etiqueta: 'Nome', tipo: 'text', valor: categoria.name, obrigatorio: true, maximo: 60 },
-      { nome: 'kind', etiqueta: 'Tipo', tipo: 'seleccao', valor: categoria.kind, opcoes: TIPOS_MOVIMENTO_ATIVO },
-    ],
+    campos: camposCategoriaAtivos(categoria),
     confirmar: 'Guardar alterações',
   });
   if (!valores) return;
-  try { await actualizarCategoriaAtivos(categoria.id, { name: valores.name, kind: valores.kind }); avisar('Categoria atualizada.', 'sucesso'); await recarregar(); }
-  catch (erro) { avisar(traduzErro(erro), 'erro'); }
+  try {
+    await actualizarCategoriaAtivos(categoria.id, { name: valores.name, kind: valores.kind, color: valores.color });
+    avisar('Categoria atualizada.', 'sucesso'); await recarregar();
+  } catch (erro) { avisar(traduzErro(erro), 'erro'); }
 }
 
 async function apagarCategoria(categoria, recarregar) {
