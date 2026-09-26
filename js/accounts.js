@@ -21,9 +21,10 @@ const CONTAS_SUGERIDAS = [
   { name: 'Investimentos',  type: 'investimento',   currency: 'EUR', initial_balance: 0 },
 ];
 
+/** Sub-separadores de Carteira > Definicoes. */
 export const ABAS_GESTAO = [
   { nome: 'Contas',     destino: 'contas' },
-  { nome: 'Categorias', destino: 'categorias' },
+  { nome: 'Orçamento',  destino: 'definicoes-orcamento' },
   { nome: 'Etiquetas',  destino: 'etiquetas' },
 ];
 
@@ -168,7 +169,7 @@ export function desenharContas(contas, accoes = {}) {
   const fragmento = document.createDocumentFragment();
 
   fragmento.append(
-    abas(ABAS_GESTAO, 'contas'),
+    abas(ABAS_GESTAO, 'contas', true),
     el('div', { class: 'cabecalho' }, [
       el('h1', { class: 'cabecalho__titulo', text: 'Contas' }),
       contas.length

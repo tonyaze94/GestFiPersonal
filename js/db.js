@@ -188,7 +188,7 @@ export async function listarOrcamentos() {
   return verificar(await supabase
     .from('budgets')
     .select('id, category_id, account_id, month, amount,'
-          + ' categories(id, name, color, kind), accounts(id, name)')
+          + ' categories(id, name, color, icon, kind), accounts(id, name)')
     .order('month', { ascending: true, nullsFirst: true }));
 }
 
@@ -202,6 +202,39 @@ export async function actualizarOrcamento(id, alteracoes) {
 
 export async function apagarOrcamento(id) {
   return verificar(await supabase.from('budgets').delete().eq('id', id));
+}
+
+// --- Teto global mensal ------------------------------------------------------
+
+// Limite para o total que sai no mes, independente dos orcamentos por
+// categoria. month = NULL e o recorrente; uma linha com mes substitui-o so
+// nesse mes (a mesma regra dos orcamentos).
+
+export async function listarTetos() {
+  return verificar(await supabase
+    .from('budget_caps')
+    .select('id, month, amount')
+    .order('month', { ascending: true, nullsFirst: true }));
+}
+
+/** O teto em vigor num mes: o do proprio mes, senao o recorrente. */
+export function tetoEmVigor(tetos, mes) {
+  return tetos.find((t) => t.month === mes) || tetos.find((t) => t.month === null) || null;
+}
+
+/** Cria ou actualiza o teto do ambito indicado (mes = null -> recorrente). */
+export async function definirTeto(tetos, mes, valor) {
+  const existente = tetos.find((t) => t.month === mes);
+  if (existente) {
+    return verificar(await supabase.from('budget_caps').update({ amount: valor })
+      .eq('id', existente.id).select().single());
+  }
+  return verificar(await supabase.from('budget_caps').insert({ month: mes, amount: valor })
+    .select().single());
+}
+
+export async function apagarTeto(id) {
+  return verificar(await supabase.from('budget_caps').delete().eq('id', id));
 }
 
 // --- Movimentos --------------------------------------------------------------
@@ -226,7 +259,7 @@ export async function listarMovimentos(filtros = {}) {
 
   const colunas = 'id, account_id, category_id, amount, description, occurred_on,'
                 + ' excluded_from_analysis, excluded_reason,'
-                + ' accounts(name), categories(id, name, color, kind)';
+                + ' accounts(name), categories(id, name, color, icon, kind)';
 
   // Filtrar por etiqueta obriga a juncao interna sobre a tabela de ligacao.
   const seleccao = etiqueta

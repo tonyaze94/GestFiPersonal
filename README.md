@@ -1,7 +1,8 @@
 # GestFi — Finanças Pessoais
 
 Aplicação web pessoal de gestão de finanças: contas, movimentos, categorias,
-etiquetas e orçamentos mensais. Sem ligação a bancos — os movimentos são
+etiquetas, orçamentos mensais por categoria e um teto global de gasto
+por mês. Sem ligação a bancos — os movimentos são
 inseridos à mão.
 
 HTML, CSS e JavaScript puro, sem passo de compilação. Base de dados e
@@ -11,7 +12,7 @@ autenticação na Supabase. Instalável como PWA no telemóvel e no PC.
 
 O código é público; os dados não são.
 
-- **Row Level Security** ativo nas 13 tabelas, com políticas que restringem
+- **Row Level Security** ativo nas 14 tabelas, com políticas que restringem
   todas as operações a `auth.uid() = user_id`. É esta a proteção real dos
   dados — não o repositório ser público ou privado.
 - A chave em `js/supabaseClient.js` é a **publishable** (equivalente moderno da
@@ -81,12 +82,12 @@ js/modal.js           janelas de diálogo
 js/db.js              acesso a dados e agregações (finanças + ativos)
 js/auth.js            entrada, MFA e sessão
 js/app.js             arranque e encaminhamento
-js/dashboard.js       ecrã Resumo
-js/transactions.js    ecrã Movimentos
-js/budgets.js         ecrã Orçamento
-js/accounts.js        ecrã Contas
-js/categories.js      ecrã Categorias
-js/tags.js            ecrã Etiquetas
+js/dashboard.js       Carteira > Resumo
+js/transactions.js    Carteira > Movimentos
+js/budgets.js         Carteira > Orçamento (categorias + teto global)
+js/accounts.js        Carteira > Definições > Contas
+js/categories.js      Carteira > Definições > Orçamento (teto, categorias)
+js/tags.js            Carteira > Definições > Etiquetas
 js/assets.js          ecrã Ativos (grupos, ativos, parceiros, troca, análise)
 js/charts.js          gráficos (Chart.js)
 sql/schema.sql         esquema principal (contas, movimentos, orçamentos)
@@ -112,6 +113,23 @@ base de dados, mesmo login, mesmo layout.
   referenciam são removidas primeiro, para o movimento continuar a existir.
 - "Troca" (trade-in): vende o ativo atual e usa o resultado como custo
   inicial de um ativo novo, dividido pelos mesmos parceiros.
+
+## Navegação
+
+Dois menus: **Carteira** e **Ativos**. A Carteira tem os separadores Resumo,
+Movimentos, Orçamento e Definições; Definições tem por sua vez Contas,
+Orçamento (teto global e categorias, com nome, ícone e cor) e Etiquetas. Os
+separadores da Carteira são desenhados pelo `app.js` por cima de cada ecrã
+(campo `aba` no registo de vistas), por isso os ecrãs não os conhecem.
+
+## Teto global mensal
+
+Tabela `budget_caps` (secção 6 do `schema.sql`): um máximo para o total de
+saídas do mês, em todas as contas, independente dos orçamentos por categoria
+— a soma destes pode ficar acima ou abaixo. Mesma regra de âmbito que
+`budgets`: `month` nulo é o recorrente, uma linha com mês substitui-o nesse
+mês. O gasto comparado é o `total_despesas` de `rpc_month_summary(mês, null)`,
+por isso os movimentos ocultos da análise ficam de fora.
 
 ## Notas de implementação
 

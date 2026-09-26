@@ -6,7 +6,7 @@
 // nao ha nenhum dado no ecra sem sessao iniciada.
 // -----------------------------------------------------------------------------
 import { iniciarAuth, utilizadorActual } from './auth.js';
-import { $, $$, el, avisar } from './ui.js';
+import { $, $$, el, avisar, abas, ABAS_CARTEIRA } from './ui.js';
 
 const VISTA_POR_DEFEITO = 'dashboard';
 
@@ -14,38 +14,53 @@ const VISTA_POR_DEFEITO = 'dashboard';
  * Registo de ecras. Os modulos sao carregados a pedido, para o primeiro
  * arranque nao ter de descarregar codigo de ecras que nao vao ser abertos.
  *
- * "nav" indica qual o destino da barra de navegacao a marcar como activo:
- * categorias e etiquetas vivem dentro de Contas.
+ * "nav" indica qual o destino da barra de navegacao a marcar como activo.
+ * Os ecras com "aba" vivem dentro do menu Carteira: o encaminhador desenha por
+ * cima deles os separadores ABAS_CARTEIRA, com essa aba marcada. Contas,
+ * categorias/orcamento e etiquetas sao sub-separadores de Definicoes.
  */
 const vistas = {
   dashboard: {
     titulo: 'Resumo',
-    nav: 'dashboard',
+    nav: 'carteira',
+    aba: 'dashboard',
     montar: async (alvo) => (await import('./dashboard.js')).montarResumo(alvo),
   },
   movimentos: {
     titulo: 'Movimentos',
-    nav: 'movimentos',
+    nav: 'carteira',
+    aba: 'movimentos',
     montar: async (alvo) => (await import('./transactions.js')).montarMovimentos(alvo),
   },
   orcamentos: {
     titulo: 'Orçamento',
-    nav: 'orcamentos',
+    nav: 'carteira',
+    aba: 'orcamentos',
     montar: async (alvo) => (await import('./budgets.js')).montarOrcamentos(alvo),
   },
   contas: {
     titulo: 'Contas',
-    nav: 'contas',
+    nav: 'carteira',
+    aba: 'contas',
     montar: async (alvo) => (await import('./accounts.js')).montarContas(alvo),
   },
+  'definicoes-orcamento': {
+    titulo: 'Definições de orçamento',
+    nav: 'carteira',
+    aba: 'contas',
+    montar: async (alvo) => (await import('./categories.js')).montarCategorias(alvo),
+  },
+  // endereco antigo das categorias, agora dentro de Definicoes > Orcamento
   categorias: {
-    titulo: 'Categorias',
-    nav: 'contas',
+    titulo: 'Definições de orçamento',
+    nav: 'carteira',
+    aba: 'contas',
     montar: async (alvo) => (await import('./categories.js')).montarCategorias(alvo),
   },
   etiquetas: {
     titulo: 'Etiquetas',
-    nav: 'contas',
+    nav: 'carteira',
+    aba: 'contas',
     montar: async (alvo) => (await import('./tags.js')).montarEtiquetas(alvo),
   },
   ativos: {
@@ -74,13 +89,22 @@ function marcarNavegacaoActiva(nome) {
 
 async function desenhar() {
   const nome = vistaActual();
-  const alvo = $('#conteudo');
+  const vista = vistas[nome];
+  const conteudo = $('#conteudo');
   marcarNavegacaoActiva(nome);
-  document.title = vistas[nome].titulo + ' — GestFi';
+  document.title = vista.titulo + ' — GestFi';
+
+  // Nos ecras da Carteira os separadores ficam fora do alvo entregue ao ecra:
+  // cada ecra faz replaceChildren() no seu alvo sem os apagar.
+  let alvo = conteudo;
+  if (vista.aba) {
+    alvo = el('div', { class: 'carteira__ecra' });
+    conteudo.replaceChildren(abas(ABAS_CARTEIRA, vista.aba), alvo);
+  }
 
   alvo.replaceChildren(el('p', { class: 'espera', text: 'A carregar…' }));
   try {
-    await vistas[nome].montar(alvo);
+    await vista.montar(alvo);
   } catch (erro) {
     console.error(erro);
     alvo.replaceChildren(el('p', { class: 'espera', text: 'Não foi possível carregar este ecrã.' }));

@@ -392,3 +392,39 @@ grant execute on function public.rpc_account_balances() to authenticated;
 grant execute on function public.rpc_month_summary(date, uuid) to authenticated;
 grant execute on function public.rpc_category_spend(date, uuid) to authenticated;
 grant execute on function public.rpc_tag_spend(date, uuid) to authenticated;
+
+
+-- ---------------------------------------------------------------------
+-- 6. TETO GLOBAL MENSAL
+--
+--    Limite para o total que sai num mes, independente dos orcamentos por
+--    categoria: a soma desses pode ficar acima ou abaixo deste valor. E
+--    sempre agregado (todas as contas) e compara-se com o total_despesas de
+--    rpc_month_summary(p_month, null).
+--
+--    Mesma regra de ambito que budgets: month = NULL e o recorrente, uma
+--    linha com mes substitui-o so nesse mes.
+-- ---------------------------------------------------------------------
+
+create table budget_caps (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) default auth.uid(),
+  month date,
+  amount numeric(14,2) not null check (amount > 0),
+  created_at timestamptz not null default now()
+);
+
+create unique index budget_caps_unique on budget_caps (
+  user_id,
+  coalesce(month, '0001-01-01'::date)
+);
+
+-- fn_budgets_normaliza_mes so toca em new.month, por isso serve tal e qual
+create trigger trg_budget_caps_normaliza_mes
+  before insert or update on budget_caps
+  for each row execute function fn_budgets_normaliza_mes();
+
+alter table budget_caps enable row level security;
+
+create policy "owner_only" on budget_caps for all
+  using (auth.uid() = user_id) with check (auth.uid() = user_id);

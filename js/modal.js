@@ -11,6 +11,13 @@ export const PALETA = [
   '#9C7A5B', '#6B7280',
 ];
 
+/** Icones sugeridos para categorias. O primeiro ('') e "sem icone". */
+export const ICONES = [
+  '', '🛒', '🍽️', '☕', '🍺', '🎉', '🎬', '🎮', '⛽', '🚗', '🚌', '✈️',
+  '🏠', '💡', '📱', '💊', '👕', '🎁', '📚', '🐾', '🔧', '🧾', '💳', '🏦',
+  '💼', '💰', '📈', '🤝',
+];
+
 function fechar(dialogo) {
   dialogo.close();
   dialogo.remove();
@@ -55,6 +62,30 @@ export function dialogoFormulario({ titulo, campos, confirmar = 'Guardar' }) {
               outro.classList.remove('paleta__cor--activa');
             }
             botao.classList.add('paleta__cor--activa');
+          });
+          controlo.append(botao);
+        }
+      } else if (campo.tipo === 'icone') {
+        controlo = el('div', { class: 'icones', 'data-icones': campo.nome });
+        // Um icone ja gravado que nao esteja na lista continua a poder ser mantido.
+        const opcoes = ICONES.includes(campo.valor || '') ? ICONES : [...ICONES, campo.valor];
+        for (const icone of opcoes) {
+          const escolhido = (campo.valor || '') === icone;
+          const botao = el('button', {
+            type: 'button',
+            class: 'icones__opcao' + (escolhido ? ' icones__opcao--activa' : ''),
+            'data-icone': icone,
+            'aria-label': icone ? 'Ícone ' + icone : 'Sem ícone',
+            'aria-pressed': escolhido ? 'true' : 'false',
+            text: icone || '—',
+          });
+          botao.addEventListener('click', () => {
+            for (const outro of controlo.querySelectorAll('.icones__opcao')) {
+              outro.classList.remove('icones__opcao--activa');
+              outro.setAttribute('aria-pressed', 'false');
+            }
+            botao.classList.add('icones__opcao--activa');
+            botao.setAttribute('aria-pressed', 'true');
           });
           controlo.append(botao);
         }
@@ -147,6 +178,9 @@ export function dialogoFormulario({ titulo, campos, confirmar = 'Guardar' }) {
         if (campo.tipo === 'cor') {
           const activa = form.querySelector('.paleta__cor--activa');
           valores[campo.nome] = activa ? activa.dataset.cor : PALETA[0];
+        } else if (campo.tipo === 'icone') {
+          const activo = form.querySelector('[data-icones="' + campo.nome + '"] .icones__opcao--activa');
+          valores[campo.nome] = activo ? activo.dataset.icone : '';
         } else if (campo.tipo === 'interruptor') {
           valores[campo.nome] = Boolean(form.elements[campo.nome]?.checked);
         } else if (campo.tipo === 'etiquetas') {

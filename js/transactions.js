@@ -15,7 +15,7 @@ import {
   listarContas, listarCategorias, listarEtiquetas, POR_PAGINA,
   etiquetaTipoCategoriaMinuscula,
 } from './db.js';
-import { el, avisar, traduzErro, estadoVazio } from './ui.js';
+import { el, avisar, traduzErro, estadoVazio, chip } from './ui.js';
 import { dialogoFormulario, dialogoConfirmar } from './modal.js';
 import { formatMoney, formatDate, hojeISO } from './format.js';
 
@@ -249,10 +249,7 @@ export function linhaMovimento(movimento, etiquetasDaLinha = [], accoes = {}) {
     el('span', { text: formatDate(movimento.occurred_on) }),
     conta ? el('span', { text: '· ' + conta.name }) : null,
     categoria
-      ? el('span', { class: 'chip' }, [
-          el('span', { class: 'chip__ponto', style: 'background:' + (categoria.color || '#6B7280') }),
-          el('span', { text: categoria.name }),
-        ])
+      ? chip(categoria.name, categoria.color || '#6B7280', categoria.icon)
       : el('span', { class: 'chip' }, [
           el('span', { class: 'chip__ponto' }),
           el('span', { text: 'sem categoria' }),

@@ -133,7 +133,7 @@ export function desenharEtiquetas(etiquetas, accoes = {}, extras = {}) {
   const { totais = [], contas = [] } = extras;
 
   fragmento.append(
-    abas(ABAS_GESTAO, 'etiquetas'),
+    abas(ABAS_GESTAO, 'etiquetas', true),
     el('div', { class: 'cabecalho' }, [
       el('h1', { class: 'cabecalho__titulo', text: 'Etiquetas' }),
       etiquetas.length

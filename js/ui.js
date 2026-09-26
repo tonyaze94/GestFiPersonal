@@ -92,10 +92,31 @@ export function ocupado(botao, ativo, textoOcupado = 'A aguardar…') {
 }
 
 /**
- * Barra de separadores. itens: [{ nome, destino }]
+ * Chip de categoria ou etiqueta: bolinha de cor, icone opcional e nome --
+ * nunca so texto.
  */
-export function abas(itens, activo) {
-  return el('nav', { class: 'abas', 'aria-label': 'Secções' },
+export function chip(nome, cor, icone) {
+  return el('span', { class: 'chip' }, [
+    el('span', { class: 'chip__ponto', style: cor ? 'background:' + cor : null }),
+    icone ? el('span', { class: 'chip__icone', 'aria-hidden': 'true', text: icone }) : null,
+    el('span', { text: nome }),
+  ]);
+}
+
+/** Separadores do menu Carteira, montados pelo app.js por cima de cada ecra. */
+export const ABAS_CARTEIRA = [
+  { nome: 'Resumo',     destino: 'dashboard' },
+  { nome: 'Movimentos', destino: 'movimentos' },
+  { nome: 'Orçamento',  destino: 'orcamentos' },
+  { nome: 'Definições', destino: 'contas' },
+];
+
+/**
+ * Barra de separadores. itens: [{ nome, destino }]
+ * secundaria: segundo nivel, dentro de um separador (ex: Definicoes).
+ */
+export function abas(itens, activo, secundaria = false) {
+  return el('nav', { class: 'abas' + (secundaria ? ' abas--sub' : ''), 'aria-label': 'Secções' },
     itens.map((item) => el('a', {
       class: 'abas__item' + (item.destino === activo ? ' abas__item--activo' : ''),
       href: '#/' + item.destino,

@@ -1,5 +1,6 @@
 // -----------------------------------------------------------------------------
-// Ecra "Categorias": criar, editar e apagar categorias de despesa e de receita.
+// Ecra "Definicoes > Orcamento": o teto global mensal e as categorias de
+// saida e de entrada (criar, editar nome/icone/cor, apagar).
 //
 // Uma categoria pode ter uma categoria-mae, para subcategorias. A restricao
 // unique (user_id, name, kind) do esquema permite que "Empréstimos" exista em
@@ -11,10 +12,12 @@
 import {
   listarCategorias, criarCategoria, actualizarCategoria,
   apagarCategoria, criarCategoriasEmLote,
+  listarTetos, definirTeto, apagarTeto,
   TIPOS_CATEGORIA, etiquetaTipoCategoriaMinuscula,
 } from './db.js';
-import { el, avisar, traduzErro, estadoVazio, abas } from './ui.js';
+import { el, avisar, traduzErro, estadoVazio, abas, chip } from './ui.js';
 import { dialogoFormulario, dialogoConfirmar, PALETA } from './modal.js';
+import { formatMoney, rotuloMes } from './format.js';
 import { ABAS_GESTAO } from './accounts.js';
 
 /** Categorias de partida, criadas de uma vez atraves da propria aplicacao. */
@@ -53,6 +56,7 @@ function camposCategoria(categoria = {}, todas = []) {
       obrigatorio: true, maximo: 40 },
     { nome: 'kind', etiqueta: 'Tipo', tipo: 'seleccao', valor: categoria.kind || 'despesa',
       opcoes: TIPOS_CATEGORIA },
+    { nome: 'icon', etiqueta: 'Ícone', tipo: 'icone', valor: categoria.icon || '' },
     { nome: 'color', etiqueta: 'Cor', tipo: 'cor', valor: categoria.color || PALETA[0] },
     { nome: 'parent_id', etiqueta: 'Categoria-mãe', tipo: 'seleccao',
       valor: categoria.parent_id || '',
@@ -66,6 +70,7 @@ function normalizar(valores) {
   return {
     name: valores.name,
     kind: valores.kind,
+    icon: valores.icon || null,
     color: valores.color,
     parent_id: valores.parent_id || null,
   };
@@ -144,15 +149,106 @@ async function criarSugeridas(recarregar) {
 }
 
 // -----------------------------------------------------------------------------
+// Teto global mensal
+//
+// Aqui gere-se o valor recorrente e as excepcoes ja criadas. Uma excepcao
+// para um mes concreto cria-se no ecra Orcamento, com esse mes aberto.
+// -----------------------------------------------------------------------------
+
+async function editarTetoRecorrente(tetos, recarregar) {
+  const actual = tetos.find((t) => t.month === null);
+  const valores = await dialogoFormulario({
+    titulo: 'Teto global mensal',
+    campos: [
+      { nome: 'amount', etiqueta: 'Máximo a sair por mês', tipo: 'number', obrigatorio: true,
+        valor: actual ? Number(actual.amount).toFixed(2) : '',
+        ajuda: 'Soma de todas as saídas do mês, em todas as contas. É independente dos '
+             + 'orçamentos por categoria: a soma destes pode ficar acima ou abaixo.' },
+    ],
+    confirmar: 'Guardar',
+  });
+  if (!valores) return;
+
+  const valor = Math.abs(Number(String(valores.amount).replace(',', '.')));
+  if (!Number.isFinite(valor) || valor <= 0) {
+    avisar('O teto tem de ser um valor maior do que zero.', 'erro');
+    return;
+  }
+
+  try {
+    await definirTeto(tetos, null, valor);
+    avisar('Teto global guardado.', 'sucesso');
+    await recarregar();
+  } catch (erro) {
+    avisar(traduzErro(erro), 'erro');
+  }
+}
+
+async function removerTeto(teto, recarregar) {
+  const ambito = teto.month ? 'de ' + rotuloMes(teto.month) : 'recorrente';
+  const confirmado = await dialogoConfirmar({
+    titulo: 'Remover teto',
+    mensagem: 'Remover o teto global ' + ambito + '? Os movimentos e os orçamentos por '
+            + 'categoria não são afetados.',
+    confirmar: 'Remover',
+  });
+  if (!confirmado) return;
+
+  try {
+    await apagarTeto(teto.id);
+    avisar('Teto removido.', 'sucesso');
+    await recarregar();
+  } catch (erro) {
+    avisar(traduzErro(erro), 'erro');
+  }
+}
+
+/** Valor em destaque e ambito por baixo: cabe em telemovel ao lado dos botoes. */
+function linhaTeto(valor, ambito, botoes) {
+  return el('li', { class: 'lista__linha' }, [
+    el('div', { class: 'lista__principal' }, [
+      el('span', { class: 'lista__nome valor', text: valor }),
+      el('span', { class: 'lista__meta', text: ambito }),
+    ]),
+    el('div', { class: 'lista__accoes' }, botoes),
+  ]);
+}
+
+function seccaoTeto(tetos, accoes) {
+  const recorrente = tetos.find((t) => t.month === null);
+  const excepcoes = tetos.filter((t) => t.month !== null);
+
+  return el('section', { class: 'seccao' }, [
+    el('div', { class: 'cabecalho' }, [
+      el('h2', { class: 'cabecalho__titulo cabecalho__titulo--peq', text: 'Teto global mensal' }),
+    ]),
+    el('p', { class: 'contexto__nota',
+      text: 'Máximo para o total de saídas do mês, em todas as contas — independente dos '
+          + 'orçamentos por categoria.' }),
+    el('ul', { class: 'lista cartao' }, [
+      linhaTeto(recorrente ? formatMoney(recorrente.amount) : 'Sem teto', 'Todos os meses', [
+        el('button', { class: 'btn btn--pequeno', type: 'button',
+          text: recorrente ? 'Editar' : 'Definir', onclick: accoes.editarTeto }),
+        recorrente
+          ? el('button', { class: 'btn btn--pequeno btn--perigo', type: 'button', text: 'Remover',
+              onclick: () => accoes.removerTeto(recorrente) })
+          : null,
+      ]),
+      ...excepcoes.map((t) => linhaTeto(formatMoney(t.amount), 'Só ' + rotuloMes(t.month), [
+          el('button', { class: 'btn btn--pequeno btn--perigo', type: 'button', text: 'Remover',
+            onclick: () => accoes.removerTeto(t) }),
+        ])),
+    ]),
+  ]);
+}
+
+// -----------------------------------------------------------------------------
 // Desenho
 // -----------------------------------------------------------------------------
 
-/** Chip de categoria: bolinha de cor mais nome, nunca so texto. */
+/** Chip de categoria: bolinha de cor, icone e nome, nunca so texto. */
 export function chipCategoria(categoria) {
-  return el('span', { class: 'chip' }, [
-    el('span', { class: 'chip__ponto', style: 'background:' + (categoria.color || '#6B7280') }),
-    el('span', { text: categoria.name }),
-  ]);
+  return chip(categoria.name, categoria.color || '#6B7280', categoria.icon);
 }
 
 function linhaCategoria(categoria, porNome, accoes) {
@@ -198,15 +294,16 @@ function seccao(titulo, tipo, categorias, porNome, accoes) {
   ]);
 }
 
-export function desenharCategorias(categorias, accoes = {}) {
+export function desenharCategorias(categorias, accoes = {}, tetos = []) {
   const fragmento = document.createDocumentFragment();
   const porNome = new Map(categorias.map((c) => [c.id, c]));
 
   fragmento.append(
-    abas(ABAS_GESTAO, 'categorias'),
+    abas(ABAS_GESTAO, 'definicoes-orcamento', true),
     el('div', { class: 'cabecalho' }, [
-      el('h1', { class: 'cabecalho__titulo', text: 'Categorias' }),
+      el('h1', { class: 'cabecalho__titulo', text: 'Definições de orçamento' }),
     ]),
+    seccaoTeto(tetos, accoes),
   );
 
   if (!categorias.length) {
@@ -238,13 +335,15 @@ export function desenharCategorias(categorias, accoes = {}) {
 
 export async function montarCategorias(alvo) {
   async function recarregar() {
-    const categorias = await listarCategorias();
+    const [categorias, tetos] = await Promise.all([listarCategorias(), listarTetos()]);
     alvo.replaceChildren(desenharCategorias(categorias, {
-      nova:      (tipo) => novaCategoria(tipo, categorias, recarregar),
-      editar:    (c) => editarCategoria(c, categorias, recarregar),
-      apagar:    (c) => removerCategoria(c, recarregar),
-      sugeridas: () => criarSugeridas(recarregar),
-    }));
+      nova:        (tipo) => novaCategoria(tipo, categorias, recarregar),
+      editar:      (c) => editarCategoria(c, categorias, recarregar),
+      apagar:      (c) => removerCategoria(c, recarregar),
+      sugeridas:   () => criarSugeridas(recarregar),
+      editarTeto:  () => editarTetoRecorrente(tetos, recarregar),
+      removerTeto: (t) => removerTeto(t, recarregar),
+    }, tetos));
   }
   await recarregar();
 }

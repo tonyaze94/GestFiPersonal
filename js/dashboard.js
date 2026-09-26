@@ -9,7 +9,7 @@
 import {
   saldosPorConta, resumoDoMes, gastoPorCategoria, listarContas,
 } from './db.js';
-import { el, avisar, traduzErro, estadoVazio } from './ui.js';
+import { el, avisar, traduzErro, estadoVazio, chip } from './ui.js';
 import { formatMoney, rotuloMes, hojeISO, primeiroDiaDoMes } from './format.js';
 import { anelPorCategoria } from './charts.js';
 
@@ -107,10 +107,7 @@ function linhaCategoria(linha, aoAbrir) {
     onclick: () => aoAbrir(linha),
   }, [
     el('div', { class: 'categoria__topo' }, [
-      el('span', { class: 'chip' }, [
-        el('span', { class: 'chip__ponto', style: 'background:' + (linha.color || '#6B7280') }),
-        el('span', { text: linha.category_name }),
-      ]),
+      chip(linha.category_name, linha.color || '#6B7280', linha.icon),
       direita,
     ]),
     orcamento != null ? barraOrcamento(gasto, orcamento) : null,

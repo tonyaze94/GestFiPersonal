@@ -365,6 +365,51 @@ p { margin: 0; }
   flex: none;
 }
 
+.chip__icone { font-size: 14px; line-height: 1; margin-right: -2px; }
+
+/* Escolha de icone no formulario de categoria */
+.icones { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.icones__opcao {
+  width: 36px;
+  height: 36px;
+  font-size: 18px;
+  line-height: 1;
+  border-radius: var(--raio-peq);
+  border: 1px solid var(--borda);
+  background: var(--superficie-2);
+  color: var(--texto-fraco);
+  cursor: pointer;
+  padding: 0;
+}
+
+.icones__opcao--activa {
+  border-color: var(--destaque-alto);
+  box-shadow: 0 0 0 1px var(--destaque-alto);
+}
+
+/* Teto global mensal, no topo do Orcamento */
+.teto { display: flex; flex-direction: column; gap: 8px; }
+
+.teto__topo {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  flex-wrap: wrap;
+}
+
+.teto__valores {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.teto__gasto { font-size: 22px; font-weight: 650; }
+
+.teto .barra { height: 10px; }
+
 /* Barra de progresso do orcamento */
 .barra {
   height: 7px;
@@ -467,6 +512,32 @@ p { margin: 0; }
 }
 
 .abas__item:hover { color: var(--texto); }
+
+/* Em telemovel os quatro separadores da Carteira cabem sem deslizar. */
+@media (max-width: 480px) {
+  .abas:not(.abas--sub) { gap: 0; }
+  .abas:not(.abas--sub) .abas__item { flex: 1; text-align: center; padding: 9px 4px; font-size: 13.5px; }
+}
+
+/* Segundo nivel (dentro de Definicoes): mais discreto, em "pilulas". */
+.abas--sub {
+  gap: 6px;
+  border-bottom: none;
+  margin-top: -6px;
+}
+
+.abas--sub .abas__item {
+  padding: 5px 12px;
+  font-size: 13px;
+  border: 1px solid var(--borda);
+  border-radius: 99px;
+  margin-bottom: 0;
+}
+
+.abas--sub .abas__item--activo {
+  background: var(--superficie-2);
+  border-color: var(--destaque-alto);
+}
 
 .abas__item--activo {
   color: var(--texto);
