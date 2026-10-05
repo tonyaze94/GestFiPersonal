@@ -8,16 +8,43 @@
 // -----------------------------------------------------------------------------
 import {
   saldosPorConta, resumoDoMes, gastoPorCategoria, listarContas,
+  mesFinanceiro, limitesDoMes,
 } from './db.js';
 import { el, avisar, traduzErro, estadoVazio, chip } from './ui.js';
-import { formatMoney, rotuloMes, hojeISO, primeiroDiaDoMes } from './format.js';
+import { formatMoney, formatDate, rotuloMes, hojeISO, primeiroDiaDoMes } from './format.js';
 import { anelPorCategoria } from './charts.js';
 
 /** Mes e conta em analise, mantidos entre visitas ao ecra. */
 export const contexto = {
   mes: primeiroDiaDoMes(hojeISO()),
   conta: '',
+  // dias do mes financeiro em analise (ver prepararContexto)
+  limites: null,
 };
+
+let mesInicialAcertado = false;
+
+/**
+ * Acerta o contexto ao mes financeiro: na primeira vez poe o mes de hoje
+ * (que pode ja ser o seguinte, a partir do dia do salario) e em todas
+ * actualiza os dias que o mes em analise abrange.
+ */
+export async function prepararContexto() {
+  if (!mesInicialAcertado) {
+    contexto.mes = await mesFinanceiro(hojeISO());
+    mesInicialAcertado = true;
+  }
+  if (contexto.limites?.mes !== contexto.mes) {
+    contexto.limites = { mes: contexto.mes, ...(await limitesDoMes(contexto.mes)) };
+  }
+}
+
+/** "30/09 a 29/10" -- os dias que o mes financeiro abrange. */
+function rotuloLimites() {
+  const l = contexto.limites;
+  if (!l || l.mes !== contexto.mes) return '';
+  return formatDate(l.ini).slice(0, 5) + ' a ' + formatDate(l.fim).slice(0, 5);
+}
 
 // -----------------------------------------------------------------------------
 // Selectores partilhados com o ecra de orcamento
@@ -51,7 +78,10 @@ export function selectorContexto(contas, aoMudar) {
         'aria-label': 'Mês anterior',
         onclick: () => { contexto.mes = deslocarMes(contexto.mes, -1); aoMudar(); },
       }),
-      el('span', { class: 'contexto__rotulo', text: rotuloMes(contexto.mes) }),
+      el('span', { class: 'contexto__rotulo' }, [
+        rotuloMes(contexto.mes),
+        el('small', { class: 'contexto__dias', text: rotuloLimites() }),
+      ]),
       el('button', {
         class: 'btn btn--pequeno', type: 'button', text: '›',
         'aria-label': 'Mês seguinte',
@@ -208,17 +238,11 @@ export function desenharResumo({ contas, saldos, resumo, categorias }, accoes = 
 // Ligacao ao ecra
 // -----------------------------------------------------------------------------
 
-/** Ultimo dia do mes, para o filtro de datas do detalhe. */
-function fimDoMes(iso) {
-  const [ano, mes] = iso.split('-').map(Number);
-  const dias = new Date(ano, mes, 0).getDate();
-  return `${iso.slice(0, 7)}-${String(dias).padStart(2, '0')}`;
-}
-
 export async function montarResumo(alvo) {
   const contas = await listarContas();
 
   async function recarregar() {
+    await prepararContexto();
     const [saldos, resumo, categorias] = await Promise.all([
       saldosPorConta(),
       resumoDoMes(contexto.mes, contexto.conta),
@@ -237,8 +261,8 @@ export async function montarResumo(alvo) {
         definirFiltros({
           conta: contexto.conta,
           categoria: linha.category_id || 'sem',
-          de: contexto.mes,
-          ate: fimDoMes(contexto.mes),
+          de: contexto.limites.ini,
+          ate: contexto.limites.fim,
           estado: 'visiveis',
         });
         location.hash = '#/movimentos';

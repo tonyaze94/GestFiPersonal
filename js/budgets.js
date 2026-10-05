@@ -21,7 +21,7 @@ import {
 import { el, avisar, traduzErro, estadoVazio, chip } from './ui.js';
 import { dialogoFormulario, dialogoConfirmar } from './modal.js';
 import { formatMoney, rotuloMes } from './format.js';
-import { contexto, selectorContexto, barraOrcamento } from './dashboard.js';
+import { contexto, prepararContexto, selectorContexto, barraOrcamento } from './dashboard.js';
 
 let contas = [];
 let categoriasSaida = [];
@@ -334,6 +334,7 @@ export async function montarOrcamentos(alvo) {
   ]);
 
   async function recarregar() {
+    await prepararContexto();
     const [orcamentos, gastos, tetos, resumoGlobal] = await Promise.all([
       listarOrcamentos(),
       gastoPorCategoria(contexto.mes, contexto.conta),

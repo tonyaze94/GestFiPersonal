@@ -160,6 +160,20 @@ export async function saldosPorConta() {
   return verificar(await supabase.rpc('rpc_account_balances'));
 }
 
+// O mes e financeiro, nao de calendario: comeca no ultimo dia util do mes
+// anterior, quando entra o salario (regra e feriados em fn_month_bounds).
+
+/** Mes financeiro (dia 1) a que uma data pertence. */
+export async function mesFinanceiro(dia) {
+  return verificar(await supabase.rpc('rpc_financial_month', { p_day: dia }));
+}
+
+/** Primeiro e ultimo dia (inclusivo) de um mes financeiro. */
+export async function limitesDoMes(mes) {
+  const linhas = verificar(await supabase.rpc('rpc_month_bounds', { p_month: mes }));
+  return linhas[0];
+}
+
 /** Totais de entradas, saidas e saldo de um mes. */
 export async function resumoDoMes(mes, conta = null) {
   const linhas = verificar(await supabase.rpc('rpc_month_summary', {

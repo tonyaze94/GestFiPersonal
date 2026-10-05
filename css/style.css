@@ -824,6 +824,15 @@ p { margin: 0; }
   text-transform: capitalize;
 }
 
+/* dias que o mes financeiro abrange, por baixo do nome do mes */
+.contexto__dias {
+  display: block;
+  font-size: 0.75em;
+  font-weight: 400;
+  color: var(--texto-fraco);
+  text-transform: none;
+}
+
 .contexto__conta {
   font: inherit;
   font-size: 13.5px;
