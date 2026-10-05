@@ -32,7 +32,7 @@ create table categories (
   kind text not null check (kind in ('receita','despesa')),
   color text,
   icon text,
-  parent_id uuid references categories(id),
+  parent_id uuid references categories(id) on delete set null,
   created_at timestamptz not null default now(),
   -- impede duplicados dentro do mesmo tipo; "Emprestimos" pode existir em
   -- despesa E em receita, porque o kind e diferente
@@ -78,7 +78,9 @@ create table budgets (
   category_id uuid not null references categories(id) on delete cascade,
   account_id uuid references accounts(id) on delete cascade,
   month date,
-  amount numeric(14,2) not null check (amount > 0)
+  -- 0 e valido: cada categoria nasce com orcamento recorrente a 0 (trigger
+  -- trg_categories_orcamento_inicial) e o valor ajusta-se depois
+  amount numeric(14,2) not null check (amount >= 0)
 );
 
 
@@ -86,23 +88,55 @@ create table budgets (
 -- 2. TRIGGERS
 -- ---------------------------------------------------------------------
 
--- So faz sentido orcamentar despesas. Um check normal nao pode consultar
--- outra tabela, por isso valida-se com um trigger.
-create function fn_budgets_categoria_deve_ser_despesa() returns trigger as $$
+-- Subcategoria: um so nivel e o mesmo tipo da mae.
+create function fn_categories_valida_mae() returns trigger
+language plpgsql
+set search_path = public
+as $$
 begin
-  if not exists (
-    select 1 from categories c
-    where c.id = new.category_id and c.kind = 'despesa'
-  ) then
-    raise exception 'So e possivel definir orcamento para categorias de despesa (category_id=%).', new.category_id;
+  if new.parent_id is not null then
+    if new.parent_id = new.id then
+      raise exception 'Uma categoria nao pode ser mae de si propria.';
+    end if;
+    if not exists (select 1 from categories p
+                   where p.id = new.parent_id and p.kind = new.kind and p.parent_id is null) then
+      raise exception 'A categoria-mae tem de ser do mesmo tipo e nao pode ser ela propria uma subcategoria.';
+    end if;
+    if exists (select 1 from categories f where f.parent_id = new.id) then
+      raise exception 'Uma categoria com subcategorias nao pode passar a subcategoria.';
+    end if;
   end if;
+
+  if tg_op = 'UPDATE' and new.kind <> old.kind
+     and exists (select 1 from categories f where f.parent_id = new.id) then
+    raise exception 'Mude primeiro o tipo das subcategorias, ou retire-as desta categoria.';
+  end if;
+
   return new;
 end;
-$$ language plpgsql;
+$$;
 
-create trigger trg_budgets_categoria_despesa
-  before insert or update on budgets
-  for each row execute function fn_budgets_categoria_deve_ser_despesa();
+create trigger trg_categories_valida_mae
+  before insert or update on categories
+  for each row execute function fn_categories_valida_mae();
+
+-- Todas as categorias (saida e entrada) entram no orcamento: ao criar uma,
+-- nasce o orcamento recorrente agregado a 0.
+create function fn_categories_orcamento_inicial() returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  insert into budgets (user_id, category_id, account_id, month, amount)
+  values (new.user_id, new.id, null, null, 0)
+  on conflict do nothing;
+  return new;
+end;
+$$;
+
+create trigger trg_categories_orcamento_inicial
+  after insert on categories
+  for each row execute function fn_categories_orcamento_inicial();
 
 -- Normaliza o mes ao dia 1, para o indice unico e as queries baterem certo
 -- mesmo que a app envie uma data a meio do mes.
@@ -369,6 +403,9 @@ $$;
 -- usam-se os orcamentos dessa conta. Um orcamento agregado nao e comparado
 -- com o gasto de uma so conta, porque isso daria uma leitura enganadora.
 --
+-- spent e o valor no sentido da categoria, com sinal: numa de saida e o que
+-- saiu (negativo se entrou mais do que saiu), numa de entrada e o que entrou.
+--
 -- Movimentos sem categoria aparecem numa linha propria "Sem categoria" com
 -- category_id nulo, em vez de desaparecerem silenciosamente do total.
 create or replace function public.rpc_category_spend(
@@ -418,7 +455,8 @@ as $$
            c.kind          as kind,
            c.color         as color,
            c.icon          as icon,
-           coalesce(abs(m.total), 0) as spent,
+           case when c.kind = 'despesa' then -coalesce(m.total, 0)
+                else coalesce(m.total, 0) end as spent,
            o.amount        as budget
     from categories c
     left join mov m on m.category_id = c.id

@@ -93,6 +93,7 @@ js/charts.js          gráficos (Chart.js)
 sql/schema.sql         esquema principal (contas, movimentos, orçamentos)
 sql/schema_assets.sql  esquema do módulo Ativos
 sql/migrate_assets.sql script de migração usado uma única vez
+sql/migrate_categorias_orcamento.sql  orçamento a 0 em todas as categorias, sinal, subcategorias
 ```
 
 ## Módulo Ativos
@@ -121,6 +122,22 @@ Movimentos, Orçamento e Definições; Definições tem por sua vez Contas,
 Orçamento (teto global e categorias, com nome, ícone e cor) e Etiquetas. Os
 separadores da Carteira são desenhados pelo `app.js` por cima de cada ecrã
 (campo `aba` no registo de vistas), por isso os ecrãs não os conhecem.
+
+## Categorias e orçamento
+
+Todas as categorias, de saída e de entrada, estão no orçamento: ao criar uma
+categoria, um trigger cria o orçamento recorrente agregado a 0, que depois se
+altera. Esse orçamento de base não se apaga; só as exceções de um mês ou de
+uma conta. Apagar a categoria apaga os orçamentos dela.
+
+O valor do mês por categoria (`spent` em `rpc_category_spend`) é a soma com
+sinal, no sentido da categoria: uma categoria de entrada pode ter movimentos
+negativos, e uma de saída positivos.
+
+Subcategorias: um só nível e o mesmo tipo da mãe (trigger
+`trg_categories_valida_mae`). Apagar a mãe deixa as filhas como categorias de
+topo. `sql/migrate_categorias_orcamento.sql` aplica estas regras a uma base já
+existente.
 
 ## Teto global mensal
 

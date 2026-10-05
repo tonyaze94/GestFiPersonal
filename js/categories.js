@@ -114,7 +114,8 @@ async function removerCategoria(categoria, recarregar) {
   const confirmado = await dialogoConfirmar({
     titulo: 'Apagar categoria',
     mensagem: `Apagar a categoria "${categoria.name}"? Os movimentos que a usavam ficam `
-            + 'sem categoria, mas não são apagados.',
+            + 'sem categoria, mas não são apagados; os orçamentos dela são apagados e as '
+            + 'subcategorias passam a categorias de topo.',
     confirmar: 'Apagar',
   });
   if (!confirmado) return;

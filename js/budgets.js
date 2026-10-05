@@ -10,8 +10,10 @@
 // O teto global mensal (budget_caps) e outro limite, para o total do mes em
 // todas as contas: nao depende da soma dos orcamentos por categoria.
 //
-// So se orcamentam categorias de saida. Nao e uma regra da interface: e um
-// trigger no esquema que a impoe, por isso vale mesmo que algo falhe no ecra.
+// Todas as categorias, de saida e de entrada, estao no orcamento: cada uma
+// nasce com o orcamento recorrente agregado a 0 (trigger no esquema), que
+// depois se altera. Esse orcamento de base nao se apaga -- so as excepcoes
+// de um mes ou de uma conta.
 // -----------------------------------------------------------------------------
 import {
   listarContas, listarCategorias, listarOrcamentos, gastoPorCategoria,
@@ -24,7 +26,7 @@ import { formatMoney, rotuloMes } from './format.js';
 import { contexto, prepararContexto, selectorContexto, barraOrcamento } from './dashboard.js';
 
 let contas = [];
-let categoriasSaida = [];
+let categorias = [];
 
 /**
  * Qual dos orcamentos se aplica ao mes e conta em analise.
@@ -43,22 +45,13 @@ function orcamentoEmVigor(orcamentos, categoryId) {
 // Formulario
 // -----------------------------------------------------------------------------
 
-function camposOrcamento(orcamento, categoriaFixa) {
-  const campos = [];
-
-  if (!categoriaFixa) {
-    campos.push({
-      nome: 'category_id', etiqueta: 'Categoria', tipo: 'seleccao',
-      valor: orcamento?.category_id || (categoriasSaida[0] && categoriasSaida[0].id) || '',
-      opcoes: categoriasSaida.map((c) => ({ valor: c.id, etiqueta: c.name })),
-      ajuda: 'Só se orçamentam categorias de saída.',
-    });
-  }
-
-  campos.push(
+function camposOrcamento(orcamento, categoria) {
+  return [
     { nome: 'amount', etiqueta: 'Valor mensal', tipo: 'number',
-      valor: orcamento ? Number(orcamento.amount).toFixed(2) : '', obrigatorio: true,
-      ajuda: 'Quanto quer que saia, no máximo, nesta categoria por mês.' },
+      valor: orcamento ? Number(orcamento.amount).toFixed(2) : '0.00', obrigatorio: true,
+      ajuda: categoria.kind === 'receita'
+        ? 'Quanto prevê que entre nesta categoria por mês. Pode ser 0.'
+        : 'Quanto quer que saia, no máximo, nesta categoria por mês. Pode ser 0.' },
     { nome: 'ambito', etiqueta: 'Aplica-se a', tipo: 'seleccao',
       valor: orcamento && orcamento.month ? 'mes' : 'sempre',
       opcoes: [
@@ -66,43 +59,45 @@ function camposOrcamento(orcamento, categoriaFixa) {
         { valor: 'mes', etiqueta: 'Só ' + rotuloMes(contexto.mes) },
       ],
       ajuda: 'Um valor só para este mês substitui o recorrente, sem o apagar.' },
-  );
-
-  return campos;
+  ];
 }
 
 function normalizar(valores, categoryId) {
   const bruto = Number(String(valores.amount).replace(',', '.'));
   return {
-    category_id: categoryId || valores.category_id,
+    category_id: categoryId,
     account_id: contexto.conta || null,
     month: valores.ambito === 'mes' ? contexto.mes : null,
     amount: Math.abs(bruto),
   };
 }
 
-function valorInvalido(valores) {
+function valorInvalido(valores, aceitaZero) {
   const bruto = Number(String(valores.amount).replace(',', '.'));
-  if (!Number.isFinite(bruto) || Math.abs(bruto) <= 0) {
-    return 'O orçamento tem de ser um valor maior do que zero.';
+  if (!Number.isFinite(bruto) || (aceitaZero ? bruto < 0 : bruto <= 0)) {
+    return aceitaZero ? 'O orçamento tem de ser zero ou um valor positivo.'
+                      : 'O teto tem de ser um valor maior do que zero.';
   }
   return null;
 }
 
-async function definirOrcamento(linha, orcamento, todos, recarregar) {
-  const categoriaFixa = linha ? linha.category_id : null;
+/** O orcamento recorrente agregado de cada categoria: existe sempre e nao se apaga. */
+function eOrcamentoBase(orcamento) {
+  return orcamento.month === null && orcamento.account_id === null;
+}
 
+async function definirOrcamento(categoria, orcamento, todos, recarregar) {
   const valores = await dialogoFormulario({
-    titulo: orcamento ? 'Editar orçamento' : 'Novo orçamento',
-    campos: camposOrcamento(orcamento, categoriaFixa),
+    titulo: (orcamento ? 'Editar orçamento' : 'Novo orçamento') + ' · ' + categoria.name,
+    campos: camposOrcamento(orcamento, categoria),
     confirmar: 'Guardar',
   });
   if (!valores) return;
 
-  const erro = valorInvalido(valores);
+  const erro = valorInvalido(valores, true);
   if (erro) { avisar(erro, 'erro'); return; }
 
-  const dados = normalizar(valores, categoriaFixa);
+  const dados = normalizar(valores, categoria.id);
 
   try {
     // Mudar o âmbito (recorrente <-> só este mês) muda a linha de destino.
@@ -173,7 +168,7 @@ async function editarTeto(tetos, recarregar) {
   });
   if (!valores) return;
 
-  const erro = valorInvalido(valores);
+  const erro = valorInvalido(valores, false);
   if (erro) { avisar(erro, 'erro'); return; }
 
   try {
@@ -230,12 +225,25 @@ function cartaoTeto({ teto, gastoTotal, somaCategorias }, accoes) {
 // Desenho
 // -----------------------------------------------------------------------------
 
+/** Numa saida, o que falta para o limite; numa entrada, o que falta para o previsto. */
+function notaOrcamento(entrada, valor, gasto) {
+  const restante = valor - gasto;
+  if (entrada) {
+    if (restante > 0) return { texto: 'Faltam ' + formatMoney(restante) + ' para o previsto', excede: false };
+    return { texto: restante < 0 ? 'Acima do previsto em ' + formatMoney(-restante) : 'Previsto atingido',
+      excede: false };
+  }
+  return restante < 0
+    ? { texto: 'Ultrapassado em ' + formatMoney(-restante), excede: true }
+    : { texto: 'Faltam ' + formatMoney(restante), excede: false };
+}
+
 function linhaOrcamento(item, accoes) {
   const { categoria, gasto, orcamento } = item;
   const definido = orcamento != null;
   const valor = definido ? Number(orcamento.amount) : null;
-  const excede = definido && gasto > valor;
-  const restante = definido ? valor - gasto : null;
+  const nota = definido ? notaOrcamento(categoria.kind === 'receita', valor, gasto) : null;
+  const excede = Boolean(nota && nota.excede);
 
   return el('div', { class: 'orcamento' }, [
     el('div', { class: 'orcamento__topo' }, [
@@ -248,24 +256,22 @@ function linhaOrcamento(item, accoes) {
         definido
           ? el('span', { class: 'categoria__orcamento' + (excede ? ' categoria__orcamento--excede' : ''),
               text: 'de ' + formatMoney(valor) })
-          : el('span', { class: 'categoria__orcamento', text: 'sem orçamento' }),
+          : el('span', { class: 'categoria__orcamento', text: 'sem orçamento nesta conta' }),
       ]),
     ]),
 
     definido ? barraOrcamento(gasto, valor) : null,
 
-    definido
+    nota
       ? el('p', { class: 'orcamento__nota' + (excede ? ' orcamento__nota--excede' : ''),
-          text: excede
-            ? 'Ultrapassado em ' + formatMoney(Math.abs(restante))
-            : 'Faltam ' + formatMoney(restante) })
+          text: nota.texto })
       : null,
 
     el('div', { class: 'orcamento__accoes' }, [
       el('button', { class: 'btn btn--pequeno', type: 'button',
         text: definido ? 'Editar' : 'Definir orçamento',
         onclick: () => accoes.definir(item) }),
-      definido
+      definido && !eOrcamentoBase(orcamento)
         ? el('button', { class: 'btn btn--pequeno btn--perigo', type: 'button', text: 'Apagar',
             onclick: () => accoes.apagar(item) })
         : null,
@@ -273,7 +279,7 @@ function linhaOrcamento(item, accoes) {
   ]);
 }
 
-export function desenharOrcamentos({ itens, contas, categoriasSaida, global }, accoes = {}) {
+export function desenharOrcamentos({ itens, contas, global }, accoes = {}) {
   const fragmento = document.createDocumentFragment();
 
   fragmento.append(
@@ -284,39 +290,25 @@ export function desenharOrcamentos({ itens, contas, categoriasSaida, global }, a
     cartaoTeto(global, accoes),
   );
 
-  if (!categoriasSaida.length) {
+  if (!itens.length) {
     fragmento.append(el('div', { class: 'cartao' }, [
-      estadoVazio('Ainda não há categorias de saída para orçamentar.',
+      estadoVazio('Ainda não há categorias para orçamentar.',
         'Criar categorias', () => { location.hash = '#/definicoes-orcamento'; }),
     ]));
     return fragmento;
   }
-
-  const comOrcamento = itens.filter((i) => i.orcamento);
-  const semOrcamento = itens.filter((i) => !i.orcamento);
 
   fragmento.append(el('p', { class: 'contexto__nota',
     text: contexto.conta
       ? 'A ver o orçamento específico desta conta.'
       : 'A ver o orçamento agregado de todas as contas.' }));
 
-  if (comOrcamento.length) {
-    fragmento.append(el('div', { class: 'cartao' },
-      comOrcamento.map((i) => linhaOrcamento(i, accoes))));
-  } else {
+  for (const [kind, titulo] of [['despesa', 'Saídas'], ['receita', 'Entradas']]) {
+    const doTipo = itens.filter((i) => i.categoria.kind === kind);
+    if (!doTipo.length) continue;
     fragmento.append(el('div', { class: 'cartao' }, [
-      estadoVazio(
-        'Ainda não definiu nenhum orçamento ' + (contexto.conta ? 'nesta conta.' : 'agregado.')
-        + ' Escolha uma categoria abaixo para começar.',
-        null, null,
-      ),
-    ]));
-  }
-
-  if (semOrcamento.length) {
-    fragmento.append(el('div', { class: 'cartao' }, [
-      el('h2', { class: 'cartao__titulo', text: 'Sem orçamento definido' }),
-      el('div', {}, semOrcamento.map((i) => linhaOrcamento(i, accoes))),
+      el('h2', { class: 'cartao__titulo', text: titulo }),
+      el('div', {}, doTipo.map((i) => linhaOrcamento(i, accoes))),
     ]));
   }
 
@@ -328,9 +320,9 @@ export function desenharOrcamentos({ itens, contas, categoriasSaida, global }, a
 // -----------------------------------------------------------------------------
 
 export async function montarOrcamentos(alvo) {
-  [contas, categoriasSaida] = await Promise.all([
+  [contas, categorias] = await Promise.all([
     listarContas(),
-    listarCategorias('despesa'),
+    listarCategorias(),
   ]);
 
   async function recarregar() {
@@ -344,22 +336,25 @@ export async function montarOrcamentos(alvo) {
 
     const gastoPorId = new Map(gastos.map((g) => [g.category_id, Number(g.spent) || 0]));
 
-    const itens = categoriasSaida.map((categoria) => ({
+    const itens = categorias.map((categoria) => ({
       categoria,
       gasto: gastoPorId.get(categoria.id) || 0,
       orcamento: orcamentoEmVigor(orcamentos, categoria.id),
     }));
 
-    // Primeiro os que estão mais perto do limite.
-    itens.sort((a, b) => {
-      const ra = a.orcamento ? a.gasto / Number(a.orcamento.amount) : -1;
-      const rb = b.orcamento ? b.gasto / Number(b.orcamento.amount) : -1;
-      return rb - ra;
-    });
+    // Primeiro os que estão mais perto do limite; com orçamento 0, qualquer
+    // valor já o ultrapassa.
+    const razao = (i) => {
+      if (!i.orcamento) return -1;
+      const valor = Number(i.orcamento.amount);
+      if (valor > 0) return i.gasto / valor;
+      return i.gasto > 0 ? Infinity : 0;
+    };
+    itens.sort((a, b) => (razao(b) - razao(a)) || (b.gasto - a.gasto));
 
     // A soma de referencia e a dos orcamentos agregados (todas as contas), para
     // comparar com o teto na mesma base, seja qual for a conta escolhida.
-    const somaCategorias = categoriasSaida.reduce((s, c) => {
+    const somaCategorias = categorias.filter((c) => c.kind === 'despesa').reduce((s, c) => {
       const o = orcamentos.filter((x) => x.category_id === c.id && x.account_id === null);
       const vigor = o.find((x) => x.month === contexto.mes) || o.find((x) => x.month === null);
       return s + (vigor ? Number(vigor.amount) : 0);
@@ -371,11 +366,10 @@ export async function montarOrcamentos(alvo) {
       somaCategorias,
     };
 
-    alvo.replaceChildren(desenharOrcamentos({ itens, contas, categoriasSaida, global }, {
+    alvo.replaceChildren(desenharOrcamentos({ itens, contas, global }, {
       recarregar,
       editarTeto: () => editarTeto(tetos, recarregar),
-      definir: (item) => definirOrcamento(
-        { category_id: item.categoria.id }, item.orcamento, orcamentos, recarregar),
+      definir: (item) => definirOrcamento(item.categoria, item.orcamento, orcamentos, recarregar),
       apagar: (item) => removerOrcamento(item.orcamento, item.categoria.name, recarregar),
     }));
   }
