@@ -1,9 +1,11 @@
 // -----------------------------------------------------------------------------
 // Ecra "Movimentos": registo, listagem paginada e filtros.
 //
-// O sinal do valor guardado na base de dados e que distingue entrada de
-// saida: positivo entra, negativo sai. No formulario pede-se o tipo e um
-// valor sempre positivo, para nao haver enganos com sinais a mao.
+// O sinal do valor e que distingue entrada de saida: positivo entra na conta,
+// negativo sai. As categorias nao tem tipo.
+//
+// Movimento entre contas: escolhe-se a outra conta em "Contrapartida" e fica
+// registado nas duas, com o sinal oposto na outra (ver guardarMovimento).
 //
 // A interface nunca fala em "receita" ou "despesa": numa conta de
 // investimentos o dinheiro que entra e um custo e o que sai e lucro, por isso
@@ -11,9 +13,8 @@
 // -----------------------------------------------------------------------------
 import {
   listarMovimentos, etiquetasDeMovimentos, etiquetasDoMovimento,
-  criarMovimento, actualizarMovimento, apagarMovimento, alternarOculto,
+  contrapartidasDeMovimentos, guardarMovimento, apagarMovimento, alternarOculto,
   listarContas, listarCategorias, listarEtiquetas, POR_PAGINA,
-  etiquetaTipoCategoriaMinuscula,
 } from './db.js';
 import { el, avisar, traduzErro, estadoVazio, chip } from './ui.js';
 import { dialogoFormulario, dialogoConfirmar } from './modal.js';
@@ -56,25 +57,23 @@ function camposMovimento(movimento = {}, etiquetasEscolhidas = []) {
       valor: movimento.account_id || (contas[0] && contas[0].id) || '',
       opcoes: contas.map((c) => ({ valor: c.id, etiqueta: c.name })) },
 
-    { nome: 'tipo', etiqueta: 'Tipo', tipo: 'seleccao',
-      valor: valor > 0 ? 'receita' : 'despesa',
-      opcoes: [
-        { valor: 'despesa', etiqueta: 'Saída (sai dinheiro da conta)' },
-        { valor: 'receita', etiqueta: 'Entrada (entra dinheiro na conta)' },
-      ] },
+    { nome: 'amount', etiqueta: 'Valor', tipo: 'number', comSinal: true,
+      valor: valor ? valor.toFixed(2) : '', obrigatorio: true,
+      ajuda: 'Negativo sai da conta, positivo entra.' },
 
-    { nome: 'amount', etiqueta: 'Valor', tipo: 'number',
-      valor: valor ? Math.abs(valor).toFixed(2) : '', obrigatorio: true,
-      ajuda: 'Sempre positivo. O tipo acima é que define se entra ou sai.' },
+    { nome: 'counter_account_id', etiqueta: 'Contrapartida', tipo: 'seleccao',
+      valor: movimento.contrapartida?.account_id || '',
+      opcoes: [
+        { valor: '', etiqueta: '— nenhuma —' },
+        ...contas.map((c) => ({ valor: c.id, etiqueta: c.name })),
+      ],
+      ajuda: 'Movimento entre contas: fica também na conta escolhida, com o sinal oposto.' },
 
     { nome: 'category_id', etiqueta: 'Categoria', tipo: 'seleccao',
       valor: movimento.category_id || '',
       opcoes: [
         { valor: '', etiqueta: '— sem categoria —' },
-        ...categorias.map((c) => ({
-          valor: c.id,
-          etiqueta: c.name + ' · ' + etiquetaTipoCategoriaMinuscula(c.kind),
-        })),
+        ...categorias.map((c) => ({ valor: c.id, etiqueta: c.name })),
       ] },
 
     { nome: 'description', etiqueta: 'Descrição', tipo: 'text',
@@ -98,14 +97,13 @@ function camposMovimento(movimento = {}, etiquetasEscolhidas = []) {
 /** Converte os valores do formulario para o formato da base de dados. */
 function normalizar(valores) {
   const bruto = Number(String(valores.amount).replace(',', '.'));
-  const absoluto = Number.isFinite(bruto) ? Math.abs(bruto) : 0;
   const oculto = Boolean(valores.excluded_from_analysis);
 
   return {
     occurred_on: valores.occurred_on,
     account_id: valores.account_id,
     category_id: valores.category_id || null,
-    amount: valores.tipo === 'receita' ? absoluto : -absoluto,
+    amount: Number.isFinite(bruto) ? bruto : 0,
     description: valores.description || null,
     excluded_from_analysis: oculto,
     excluded_reason: oculto ? (valores.excluded_reason || null) : null,
@@ -116,6 +114,9 @@ function valorInvalido(valores) {
   const bruto = Number(String(valores.amount).replace(',', '.'));
   if (!Number.isFinite(bruto) || Math.abs(bruto) === 0) return 'Indique um valor diferente de zero.';
   if (!valores.account_id) return 'Escolha a conta do movimento.';
+  if (valores.counter_account_id === valores.account_id) {
+    return 'A contrapartida tem de ser outra conta.';
+  }
   if (!valores.occurred_on) return 'Indique a data do movimento.';
   return null;
 }
@@ -137,7 +138,7 @@ async function novoMovimento(recarregar) {
   if (erro) { avisar(erro, 'erro'); return; }
 
   try {
-    await criarMovimento(normalizar(valores), valores.etiquetas);
+    await guardarMovimento(null, normalizar(valores), valores.counter_account_id, valores.etiquetas);
     avisar('Movimento registado.', 'sucesso');
     await recarregar();
   } catch (e) {
@@ -162,7 +163,8 @@ async function editarMovimento(movimento, recarregar) {
   if (erro) { avisar(erro, 'erro'); return; }
 
   try {
-    await actualizarMovimento(movimento.id, normalizar(valores), valores.etiquetas);
+    await guardarMovimento(movimento.id, normalizar(valores), valores.counter_account_id,
+      valores.etiquetas);
     avisar('Movimento atualizado.', 'sucesso');
     await recarregar();
   } catch (e) {
@@ -174,13 +176,15 @@ async function removerMovimento(movimento, recarregar) {
   const confirmado = await dialogoConfirmar({
     titulo: 'Apagar movimento',
     mensagem: `Apagar "${movimento.description || 'movimento sem descrição'}" de `
-            + `${formatMoney(movimento.amount)}, de ${formatDate(movimento.occurred_on)}?`,
+            + `${formatMoney(movimento.amount)}, de ${formatDate(movimento.occurred_on)}?`
+            + (movimento.contrapartida
+              ? ` É apagado também da conta ${movimento.contrapartida.name}.` : ''),
     confirmar: 'Apagar',
   });
   if (!confirmado) return;
 
   try {
-    await apagarMovimento(movimento.id);
+    await apagarMovimento(movimento);
     avisar('Movimento apagado.', 'sucesso');
     await recarregar();
   } catch (e) {
@@ -205,7 +209,7 @@ async function alternarAnalise(movimento, recarregar) {
   }
 
   try {
-    await alternarOculto(movimento.id, passaAOcultar, motivo);
+    await alternarOculto(movimento, passaAOcultar, motivo);
     avisar(passaAOcultar ? 'Movimento oculto da análise.' : 'Movimento incluído na análise.', 'sucesso');
     await recarregar();
   } catch (e) {
@@ -248,6 +252,10 @@ export function linhaMovimento(movimento, etiquetasDaLinha = [], accoes = {}) {
   const meta = el('div', { class: 'movimento__meta' }, [
     el('span', { text: formatDate(movimento.occurred_on) }),
     conta ? el('span', { text: '· ' + conta.name }) : null,
+    movimento.contrapartida
+      ? el('span', { text: (negativo ? '→ ' : '← ') + movimento.contrapartida.name,
+          title: 'Movimento entre contas' })
+      : null,
     categoria
       ? chip(categoria.name, categoria.color || '#6B7280', categoria.icon)
       : el('span', { class: 'chip' }, [
@@ -427,8 +435,12 @@ export async function montarMovimentos(alvo) {
 
   async function recarregar() {
     const { movimentos, total } = await listarMovimentos(filtros);
-    // Segundo pedido limitado aos movimentos desta página.
-    const etiquetasPorMovimento = await etiquetasDeMovimentos(movimentos.map((m) => m.id));
+    // Pedidos limitados aos movimentos desta página.
+    const [etiquetasPorMovimento, contrapartidas] = await Promise.all([
+      etiquetasDeMovimentos(movimentos.map((m) => m.id)),
+      contrapartidasDeMovimentos(movimentos),
+    ]);
+    for (const m of movimentos) m.contrapartida = contrapartidas.get(m.id) || null;
 
     alvo.replaceChildren(desenharMovimentos(
       { movimentos, total, etiquetasPorMovimento },

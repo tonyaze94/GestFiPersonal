@@ -66,42 +66,16 @@ export async function criarContasEmLote(contas) {
   return verificar(await supabase.from('accounts').insert(contas).select());
 }
 
-// --- Tipos de categoria ------------------------------------------------------
-
-// A base de dados guarda 'despesa' e 'receita' (a restricao check do esquema
-// exige esses valores), mas a interface fala sempre em Saida e Entrada.
-// Numa conta de investimentos o dinheiro que entra e um custo e o que sai e
-// lucro, por isso "despesa" e "receita" seriam enganadores no ecra.
-export const TIPOS_CATEGORIA = [
-  { valor: 'despesa', etiqueta: 'Saída' },
-  { valor: 'receita', etiqueta: 'Entrada' },
-];
-
-/** 'despesa' -> 'Saída' */
-export function etiquetaTipoCategoria(kind) {
-  const tipo = TIPOS_CATEGORIA.find((t) => t.valor === kind);
-  return tipo ? tipo.etiqueta : kind;
-}
-
-/** 'despesa' -> 'Saídas' */
-export function etiquetaTipoCategoriaPlural(kind) {
-  return kind === 'receita' ? 'Entradas' : 'Saídas';
-}
-
-/** 'despesa' -> 'saída' (para usar dentro de uma frase) */
-export function etiquetaTipoCategoriaMinuscula(kind) {
-  return kind === 'receita' ? 'entrada' : 'saída';
-}
-
 // --- Categorias --------------------------------------------------------------
 
-export async function listarCategorias(tipo) {
-  let consulta = supabase
+// Uma categoria nao e de entrada nem de saida: o sinal de cada movimento e
+// que decide (positivo entra na conta, negativo sai).
+
+export async function listarCategorias() {
+  return verificar(await supabase
     .from('categories')
-    .select('id, name, kind, color, icon, parent_id, created_at')
-    .order('name', { ascending: true });
-  if (tipo) consulta = consulta.eq('kind', tipo);
-  return verificar(await consulta);
+    .select('id, name, color, icon, parent_id, created_at')
+    .order('name', { ascending: true }));
 }
 
 export async function criarCategoria(categoria) {
@@ -119,12 +93,12 @@ export async function apagarCategoria(id) {
 /**
  * Insercao em lote das categorias de partida, num unico pedido.
  * ignoreDuplicates evita rebentar se algumas ja existirem: a restricao
- * unique (user_id, name, kind) do esquema trata da deteccao.
+ * unique (user_id, name) do esquema trata da deteccao.
  */
 export async function criarCategoriasEmLote(categorias) {
   return verificar(await supabase
     .from('categories')
-    .upsert(categorias, { onConflict: 'user_id,name,kind', ignoreDuplicates: true })
+    .upsert(categorias, { onConflict: 'user_id,name', ignoreDuplicates: true })
     .select());
 }
 
@@ -202,7 +176,7 @@ export async function listarOrcamentos() {
   return verificar(await supabase
     .from('budgets')
     .select('id, category_id, account_id, month, amount,'
-          + ' categories(id, name, color, icon, kind), accounts(id, name)')
+          + ' categories(id, name, color, icon), accounts(id, name)')
     .order('month', { ascending: true, nullsFirst: true }));
 }
 
@@ -272,8 +246,8 @@ export async function listarMovimentos(filtros = {}) {
   } = filtros;
 
   const colunas = 'id, account_id, category_id, amount, description, occurred_on,'
-                + ' excluded_from_analysis, excluded_reason,'
-                + ' accounts(name), categories(id, name, color, icon, kind)';
+                + ' excluded_from_analysis, excluded_reason, transfer_id,'
+                + ' accounts(name), categories(id, name, color, icon)';
 
   // Filtrar por etiqueta obriga a juncao interna sobre a tabela de ligacao.
   const seleccao = etiqueta
@@ -334,42 +308,68 @@ export async function etiquetasDoMovimento(id) {
   return data.map((l) => l.tag_id);
 }
 
-/** Substitui as etiquetas de um movimento, sempre em lote. */
-async function definirEtiquetas(transactionId, tagIds) {
-  verificar(await supabase.from('transaction_tags').delete().eq('transaction_id', transactionId));
-  if (!tagIds.length) return;
-  verificar(await supabase.from('transaction_tags').insert(
-    tagIds.map((tag_id) => ({ transaction_id: transactionId, tag_id })),
-  ));
-}
+// Movimento entre contas: duas linhas, uma em cada conta, com valores
+// simetricos e o mesmo transfer_id. Criam-se, alteram-se e apagam-se sempre
+// juntas -- a gravacao e feita por rpc_save_transaction, numa so transaccao.
 
-export async function criarMovimento(movimento, tagIds = []) {
-  const criado = verificar(await supabase.from('transactions').insert(movimento).select().single());
-  if (tagIds.length) await definirEtiquetas(criado.id, tagIds);
-  return criado;
-}
+/**
+ * Conta do outro lado de cada movimento entre contas da pagina.
+ * @returns {Map<string, {account_id: string, name: string}>} por id do movimento
+ */
+export async function contrapartidasDeMovimentos(movimentos) {
+  const transferencias = [...new Set(movimentos.map((m) => m.transfer_id).filter(Boolean))];
+  if (!transferencias.length) return new Map();
 
-export async function actualizarMovimento(id, alteracoes, tagIds = null) {
-  const actualizado = verificar(await supabase
+  const data = verificar(await supabase
     .from('transactions')
-    .update({ ...alteracoes, updated_at: new Date().toISOString() })
-    .eq('id', id)
-    .select()
-    .single());
-  if (tagIds) await definirEtiquetas(id, tagIds);
-  return actualizado;
+    .select('id, transfer_id, account_id, accounts(name)')
+    .in('transfer_id', transferencias));
+
+  const porMovimento = new Map();
+  for (const m of movimentos) {
+    if (!m.transfer_id) continue;
+    const outra = data.find((l) => l.transfer_id === m.transfer_id && l.id !== m.id);
+    if (outra) porMovimento.set(m.id, { account_id: outra.account_id, name: outra.accounts?.name || '?' });
+  }
+  return porMovimento;
 }
 
-export async function apagarMovimento(id) {
-  return verificar(await supabase.from('transactions').delete().eq('id', id));
+/**
+ * Cria (id nulo) ou altera um movimento. Com contrapartida, a linha simetrica
+ * na outra conta e criada ou acertada; sem ela, e apagada se existisse.
+ */
+export async function guardarMovimento(id, movimento, contrapartida, tagIds = []) {
+  return verificar(await supabase.rpc('rpc_save_transaction', {
+    p_id: id || null,
+    p_account_id: movimento.account_id,
+    p_amount: movimento.amount,
+    p_occurred_on: movimento.occurred_on,
+    p_category_id: movimento.category_id,
+    p_description: movimento.description,
+    p_excluded: movimento.excluded_from_analysis,
+    p_excluded_reason: movimento.excluded_reason,
+    p_counter_account_id: contrapartida || null,
+    p_tag_ids: tagIds,
+  }));
 }
 
-/** Liga ou desliga "ocultar da análise" sem abrir o formulário completo. */
-export async function alternarOculto(id, oculto, motivo) {
-  return actualizarMovimento(id, {
+/** Apaga o movimento e, se for entre contas, a linha da outra conta. */
+export async function apagarMovimento(movimento) {
+  const consulta = supabase.from('transactions').delete();
+  return verificar(await (movimento.transfer_id
+    ? consulta.eq('transfer_id', movimento.transfer_id)
+    : consulta.eq('id', movimento.id)));
+}
+
+/** Liga ou desliga "ocultar da análise" sem abrir o formulário (nas duas linhas, se for entre contas). */
+export async function alternarOculto(movimento, oculto, motivo) {
+  const consulta = supabase.from('transactions').update({
     excluded_from_analysis: oculto,
     excluded_reason: oculto ? (motivo || null) : null,
   });
+  return verificar(await (movimento.transfer_id
+    ? consulta.eq('transfer_id', movimento.transfer_id)
+    : consulta.eq('id', movimento.id)));
 }
 
 // -----------------------------------------------------------------------------

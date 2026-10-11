@@ -127,7 +127,8 @@ export function dialogoFormulario({ titulo, campos, confirmar = 'Guardar' }) {
           name: campo.nome,
           id: 'c-' + campo.nome,
           value: campo.valor ?? '',
-          inputmode: campo.tipo === 'number' ? 'decimal' : null,
+          // o teclado 'decimal' do telemovel nao tem sinal de menos
+          inputmode: campo.tipo === 'number' && !campo.comSinal ? 'decimal' : null,
           step: campo.tipo === 'number' ? '0.01' : null,
           maxlength: campo.maximo || null,
           required: campo.obrigatorio || null,

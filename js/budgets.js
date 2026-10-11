@@ -10,10 +10,13 @@
 // O teto global mensal (budget_caps) e outro limite, para o total do mes em
 // todas as contas: nao depende da soma dos orcamentos por categoria.
 //
-// Todas as categorias, de saida e de entrada, estao no orcamento: cada uma
-// nasce com o orcamento recorrente agregado a 0 (trigger no esquema), que
-// depois se altera. Esse orcamento de base nao se apaga -- so as excepcoes
-// de um mes ou de uma conta.
+// Todas as categorias estao no orcamento: cada uma nasce com o orcamento
+// recorrente agregado a 0 (trigger no esquema), que depois se altera. Esse
+// orcamento de base nao se apaga -- so as excepcoes de um mes ou de uma conta.
+//
+// As categorias nao tem tipo: o liquido do mes decide se a categoria aparece
+// em Saidas (saiu mais do que entrou) ou em Entradas, e o orcamento le-se
+// como limite numa e como previsto na outra.
 // -----------------------------------------------------------------------------
 import {
   listarContas, listarCategorias, listarOrcamentos, gastoPorCategoria,
@@ -45,13 +48,12 @@ function orcamentoEmVigor(orcamentos, categoryId) {
 // Formulario
 // -----------------------------------------------------------------------------
 
-function camposOrcamento(orcamento, categoria) {
+function camposOrcamento(orcamento) {
   return [
     { nome: 'amount', etiqueta: 'Valor mensal', tipo: 'number',
       valor: orcamento ? Number(orcamento.amount).toFixed(2) : '0.00', obrigatorio: true,
-      ajuda: categoria.kind === 'receita'
-        ? 'Quanto prevê que entre nesta categoria por mês. Pode ser 0.'
-        : 'Quanto quer que saia, no máximo, nesta categoria por mês. Pode ser 0.' },
+      ajuda: 'Quanto quer que saia, no máximo, nesta categoria por mês -- ou, se for de '
+           + 'entrada, quanto prevê que entre. Pode ser 0.' },
     { nome: 'ambito', etiqueta: 'Aplica-se a', tipo: 'seleccao',
       valor: orcamento && orcamento.month ? 'mes' : 'sempre',
       opcoes: [
@@ -89,7 +91,7 @@ function eOrcamentoBase(orcamento) {
 async function definirOrcamento(categoria, orcamento, todos, recarregar) {
   const valores = await dialogoFormulario({
     titulo: (orcamento ? 'Editar orçamento' : 'Novo orçamento') + ' · ' + categoria.name,
-    campos: camposOrcamento(orcamento, categoria),
+    campos: camposOrcamento(orcamento),
     confirmar: 'Guardar',
   });
   if (!valores) return;
@@ -239,10 +241,10 @@ function notaOrcamento(entrada, valor, gasto) {
 }
 
 function linhaOrcamento(item, accoes) {
-  const { categoria, gasto, orcamento } = item;
+  const { categoria, gasto, entrada, orcamento } = item;
   const definido = orcamento != null;
   const valor = definido ? Number(orcamento.amount) : null;
-  const nota = definido ? notaOrcamento(categoria.kind === 'receita', valor, gasto) : null;
+  const nota = definido ? notaOrcamento(entrada, valor, gasto) : null;
   const excede = Boolean(nota && nota.excede);
 
   return el('div', { class: 'orcamento' }, [
@@ -303,8 +305,13 @@ export function desenharOrcamentos({ itens, contas, global }, accoes = {}) {
       ? 'A ver o orçamento específico desta conta.'
       : 'A ver o orçamento agregado de todas as contas.' }));
 
-  for (const [kind, titulo] of [['despesa', 'Saídas'], ['receita', 'Entradas']]) {
-    const doTipo = itens.filter((i) => i.categoria.kind === kind);
+  const grupos = [
+    ['Saídas', (i) => i.gasto > 0 && !i.entrada],
+    ['Entradas', (i) => i.entrada],
+    ['Sem movimentos este mês', (i) => i.gasto === 0],
+  ];
+  for (const [titulo, pertence] of grupos) {
+    const doTipo = itens.filter(pertence);
     if (!doTipo.length) continue;
     fragmento.append(el('div', { class: 'cartao' }, [
       el('h2', { class: 'cartao__titulo', text: titulo }),
@@ -336,11 +343,16 @@ export async function montarOrcamentos(alvo) {
 
     const gastoPorId = new Map(gastos.map((g) => [g.category_id, Number(g.spent) || 0]));
 
-    const itens = categorias.map((categoria) => ({
-      categoria,
-      gasto: gastoPorId.get(categoria.id) || 0,
-      orcamento: orcamentoEmVigor(orcamentos, categoria.id),
-    }));
+    // gasto vai sempre positivo; entrada diz se o liquido do mes foi a entrar.
+    const itens = categorias.map((categoria) => {
+      const liquido = gastoPorId.get(categoria.id) || 0;
+      return {
+        categoria,
+        gasto: Math.abs(liquido),
+        entrada: liquido < 0,
+        orcamento: orcamentoEmVigor(orcamentos, categoria.id),
+      };
+    });
 
     // Primeiro os que estão mais perto do limite; com orçamento 0, qualquer
     // valor já o ultrapassa.
@@ -353,8 +365,9 @@ export async function montarOrcamentos(alvo) {
     itens.sort((a, b) => (razao(b) - razao(a)) || (b.gasto - a.gasto));
 
     // A soma de referencia e a dos orcamentos agregados (todas as contas), para
-    // comparar com o teto na mesma base, seja qual for a conta escolhida.
-    const somaCategorias = categorias.filter((c) => c.kind === 'despesa').reduce((s, c) => {
+    // comparar com o teto na mesma base, seja qual for a conta escolhida. As
+    // categorias que este mes foram de entrada ficam de fora.
+    const somaCategorias = itens.filter((i) => !i.entrada).map((i) => i.categoria).reduce((s, c) => {
       const o = orcamentos.filter((x) => x.category_id === c.id && x.account_id === null);
       const vigor = o.find((x) => x.month === contexto.mes) || o.find((x) => x.month === null);
       return s + (vigor ? Number(vigor.amount) : 0);

@@ -151,10 +151,12 @@ function linhaCategoria(linha, aoAbrir) {
 export function desenharResumo({ contas, saldos, resumo, categorias }, accoes = {}) {
   const fragmento = document.createDocumentFragment();
 
-  // spent vem com sinal (uma categoria de entrada pode ter saldo negativo no
-  // mes); a lista mostra tudo o que mexeu, o grafico so pode levar positivos.
-  const saidas = categorias.filter((c) => c.kind === 'despesa' && Number(c.spent) !== 0);
-  const entradas = categorias.filter((c) => c.kind === 'receita' && Number(c.spent) !== 0);
+  // As categorias nao tem tipo: spent e o liquido do mes, positivo se saiu
+  // mais do que entrou. O sinal decide em que lista a categoria aparece.
+  const saidas = categorias.filter((c) => Number(c.spent) > 0);
+  const entradas = categorias.filter((c) => Number(c.spent) < 0)
+    .map((c) => ({ ...c, spent: -Number(c.spent) }))
+    .sort((a, b) => b.spent - a.spent);
 
   // Saldo: o da conta escolhida, ou a soma de todas.
   const relevantes = contexto.conta
@@ -216,7 +218,7 @@ export function desenharResumo({ contas, saldos, resumo, categorias }, accoes = 
     // O gráfico só pode ser criado depois de o canvas estar no documento.
     accoes.aoMontar && accoes.aoMontar(() => anelPorCategoria(
       tela,
-      saidas.filter((c) => Number(c.spent) > 0).map((c) => ({ nome: c.category_name, valor: Number(c.spent), cor: c.color || '#6B7280' })),
+      saidas.map((c) => ({ nome: c.category_name, valor: Number(c.spent), cor: c.color || '#6B7280' })),
       (v) => formatMoney(v),
     ));
 

@@ -94,6 +94,7 @@ sql/schema.sql         esquema principal (contas, movimentos, orçamentos)
 sql/schema_assets.sql  esquema do módulo Ativos
 sql/migrate_assets.sql script de migração usado uma única vez
 sql/migrate_categorias_orcamento.sql  orçamento a 0 em todas as categorias, sinal, subcategorias
+sql/migrate_sinal_transferencias.sql  categorias sem tipo, movimentos entre contas
 ```
 
 ## Módulo Ativos
@@ -123,21 +124,30 @@ Orçamento (teto global e categorias, com nome, ícone e cor) e Etiquetas. Os
 separadores da Carteira são desenhados pelo `app.js` por cima de cada ecrã
 (campo `aba` no registo de vistas), por isso os ecrãs não os conhecem.
 
+## Movimentos e categorias
+
+O valor de um movimento tem sinal: negativo sai da conta, positivo entra. Não
+há campo de tipo, nem no movimento nem na categoria.
+
+**Movimento entre contas:** no formulário escolhe-se a conta de
+"Contrapartida". Ficam duas linhas, uma em cada conta, com valores simétricos
+e o mesmo `transfer_id`; a gravação é sempre por `rpc_save_transaction`, numa
+só transação. Editar, ocultar ou apagar uma das linhas faz o mesmo à outra.
+
 ## Categorias e orçamento
 
-Todas as categorias, de saída e de entrada, estão no orçamento: ao criar uma
-categoria, um trigger cria o orçamento recorrente agregado a 0, que depois se
-altera. Esse orçamento de base não se apaga; só as exceções de um mês ou de
-uma conta. Apagar a categoria apaga os orçamentos dela.
+Todas as categorias estão no orçamento: ao criar uma categoria, um trigger
+cria o orçamento recorrente agregado a 0, que depois se altera. Esse
+orçamento de base não se apaga; só as exceções de um mês ou de uma conta.
+Apagar a categoria apaga os orçamentos dela.
 
-O valor do mês por categoria (`spent` em `rpc_category_spend`) é a soma com
-sinal, no sentido da categoria: uma categoria de entrada pode ter movimentos
-negativos, e uma de saída positivos.
+O valor do mês por categoria (`spent` em `rpc_category_spend`) é o líquido no
+sentido de "saiu": positivo se saiu mais do que entrou, negativo se entrou
+mais. É esse sinal que põe a categoria em Saídas ou em Entradas, no Resumo e
+no Orçamento, onde o valor orçamentado se lê como limite ou como previsto.
 
-Subcategorias: um só nível e o mesmo tipo da mãe (trigger
-`trg_categories_valida_mae`). Apagar a mãe deixa as filhas como categorias de
-topo. `sql/migrate_categorias_orcamento.sql` aplica estas regras a uma base já
-existente.
+Subcategorias: um só nível (trigger `trg_categories_valida_mae`). Apagar a mãe
+deixa as filhas como categorias de topo.
 
 ## Teto global mensal
 
@@ -155,8 +165,7 @@ por isso os movimentos ocultos da análise ficam de fora.
   Está centralizado em `formatMoney()` — não usar `toLocaleString('pt-PT')`.
 - **Entrada / Saída**: a interface nunca fala em "receita" ou "despesa", porque
   numa conta de investimentos o dinheiro que entra é um custo e o que sai é
-  lucro. Na base de dados os valores continuam `receita` e `despesa`; a
-  tradução está em `TIPOS_CATEGORIA`, em `js/db.js`.
+  lucro.
 - **Agregações**: todas as somas por conta, mês, categoria e etiqueta são
   feitas em Postgres, nunca em JavaScript depois de trazer os movimentos todos.
 - **Ocultar da análise**: um movimento oculto continua a contar para o saldo da

@@ -1,19 +1,14 @@
 // -----------------------------------------------------------------------------
-// Ecra "Definicoes > Orcamento": o teto global mensal e as categorias de
-// saida e de entrada (criar, editar nome/icone/cor, apagar).
+// Ecra "Definicoes > Orcamento": o teto global mensal e as categorias
+// (criar, editar nome/icone/cor, apagar).
 //
-// Uma categoria pode ter uma categoria-mae, para subcategorias. A restricao
-// unique (user_id, name, kind) do esquema permite que "Empréstimos" exista em
-// saida e em entrada ao mesmo tempo, por serem tipos diferentes.
-//
-// Na base de dados os tipos continuam a chamar-se 'despesa' e 'receita'; na
-// interface sao sempre Saida e Entrada (ver TIPOS_CATEGORIA em db.js).
+// Uma categoria nao e de entrada nem de saida: o sinal de cada movimento e
+// que decide. Pode ter uma categoria-mae, para subcategorias.
 // -----------------------------------------------------------------------------
 import {
   listarCategorias, criarCategoria, actualizarCategoria,
   apagarCategoria, criarCategoriasEmLote,
   listarTetos, definirTeto, apagarTeto,
-  TIPOS_CATEGORIA, etiquetaTipoCategoriaMinuscula,
 } from './db.js';
 import { el, avisar, traduzErro, estadoVazio, abas, chip } from './ui.js';
 import { dialogoFormulario, dialogoConfirmar, PALETA } from './modal.js';
@@ -22,21 +17,20 @@ import { ABAS_GESTAO } from './accounts.js';
 
 /** Categorias de partida, criadas de uma vez atraves da propria aplicacao. */
 const CATEGORIAS_SUGERIDAS = [
-  { name: 'Diversos',            kind: 'despesa', color: '#6B7280' },
-  { name: 'Carro e Transportes', kind: 'despesa', color: '#2B5CB8' },
-  { name: 'Levantamentos',       kind: 'despesa', color: '#9C7A5B' },
-  { name: 'Restaurantes',        kind: 'despesa', color: '#D9483C' },
-  { name: 'Bares',               kind: 'despesa', color: '#C4589B' },
-  { name: 'Discotecas',          kind: 'despesa', color: '#8A5BC4' },
-  { name: 'Cinema',              kind: 'despesa', color: '#5B63C4' },
-  { name: 'Combustível',         kind: 'despesa', color: '#E8A33D' },
-  { name: 'Contabilista',        kind: 'despesa', color: '#3AA6A6' },
-  { name: 'Taxas',               kind: 'despesa', color: '#E3C84B' },
-  { name: 'Empréstimos',         kind: 'despesa', color: '#7BB661' },
-  { name: 'Casa',                kind: 'despesa', color: '#1F9D6B' },
-  { name: 'Salário',             kind: 'receita', color: '#1F9D6B' },
-  { name: 'Empréstimos',         kind: 'receita', color: '#3AA6A6' },
-  { name: 'Outros',              kind: 'receita', color: '#6B7280' },
+  { name: 'Diversos',            color: '#6B7280' },
+  { name: 'Carro e Transportes', color: '#2B5CB8' },
+  { name: 'Levantamentos',       color: '#9C7A5B' },
+  { name: 'Restaurantes',        color: '#D9483C' },
+  { name: 'Bares',               color: '#C4589B' },
+  { name: 'Discotecas',          color: '#8A5BC4' },
+  { name: 'Cinema',              color: '#5B63C4' },
+  { name: 'Combustível',         color: '#E8A33D' },
+  { name: 'Contabilista',        color: '#3AA6A6' },
+  { name: 'Taxas',               color: '#E3C84B' },
+  { name: 'Empréstimos',         color: '#7BB661' },
+  { name: 'Casa',                color: '#1F9D6B' },
+  { name: 'Salário',             color: '#1F9D6B' },
+  { name: 'Outros',              color: '#6B7280' },
 ];
 
 
@@ -48,14 +42,11 @@ const CATEGORIAS_SUGERIDAS = [
 function camposCategoria(categoria = {}, todas = []) {
   // Uma categoria nao pode ser mae de si propria.
   const possiveisMaes = todas
-    .filter((c) => c.id !== categoria.id && !c.parent_id)
-    .filter((c) => !categoria.kind || c.kind === categoria.kind);
+    .filter((c) => c.id !== categoria.id && !c.parent_id);
 
   return [
     { nome: 'name', etiqueta: 'Nome', tipo: 'text', valor: categoria.name || '',
       obrigatorio: true, maximo: 40 },
-    { nome: 'kind', etiqueta: 'Tipo', tipo: 'seleccao', valor: categoria.kind || 'despesa',
-      opcoes: TIPOS_CATEGORIA },
     { nome: 'icon', etiqueta: 'Ícone', tipo: 'icone', valor: categoria.icon || '' },
     { nome: 'color', etiqueta: 'Cor', tipo: 'cor', valor: categoria.color || PALETA[0] },
     { nome: 'parent_id', etiqueta: 'Categoria-mãe', tipo: 'seleccao',
@@ -69,17 +60,16 @@ function camposCategoria(categoria = {}, todas = []) {
 function normalizar(valores) {
   return {
     name: valores.name,
-    kind: valores.kind,
     icon: valores.icon || null,
     color: valores.color,
     parent_id: valores.parent_id || null,
   };
 }
 
-async function novaCategoria(tipo, todas, recarregar) {
+async function novaCategoria(todas, recarregar) {
   const valores = await dialogoFormulario({
-    titulo: 'Nova categoria de ' + etiquetaTipoCategoriaMinuscula(tipo),
-    campos: camposCategoria({ kind: tipo }, todas),
+    titulo: 'Nova categoria',
+    campos: camposCategoria({}, todas),
     confirmar: 'Criar categoria',
   });
   if (!valores) return;
@@ -132,7 +122,7 @@ async function removerCategoria(categoria, recarregar) {
 async function criarSugeridas(recarregar) {
   const confirmado = await dialogoConfirmar({
     titulo: 'Criar categorias de partida',
-    mensagem: 'Vão ser criadas 12 categorias de saída e 3 de entrada, cada uma com a sua cor. '
+    mensagem: 'Vão ser criadas 14 categorias, cada uma com a sua cor. '
             + 'As que já existirem são ignoradas. Pode editar ou apagar qualquer uma a seguir.',
     confirmar: 'Criar categorias',
     perigo: false,
@@ -140,7 +130,7 @@ async function criarSugeridas(recarregar) {
   if (!confirmado) return;
 
   try {
-    // Insercao em lote: um unico pedido com as 15 categorias.
+    // Insercao em lote: um unico pedido com as 14 categorias.
     await criarCategoriasEmLote(CATEGORIAS_SUGERIDAS);
     avisar('Categorias criadas.', 'sucesso');
     await recarregar();
@@ -269,7 +259,7 @@ function linhaCategoria(categoria, porNome, accoes) {
   ]);
 }
 
-function seccao(titulo, tipo, categorias, porNome, accoes) {
+function seccao(titulo, categorias, porNome, accoes) {
   // Categorias-mae primeiro, cada uma seguida das suas subcategorias.
   const raizes = categorias.filter((c) => !c.parent_id);
   const ordenadas = [];
@@ -277,20 +267,20 @@ function seccao(titulo, tipo, categorias, porNome, accoes) {
     ordenadas.push(raiz);
     ordenadas.push(...categorias.filter((c) => c.parent_id === raiz.id));
   }
-  // Subcategorias cuja mae e de outro tipo ficariam de fora: acrescenta-se no fim.
+  // Subcategorias cuja mae nao esteja na lista: acrescenta-se no fim.
   for (const c of categorias) if (!ordenadas.includes(c)) ordenadas.push(c);
 
   return el('section', { class: 'seccao' }, [
     el('div', { class: 'cabecalho' }, [
       el('h2', { class: 'cabecalho__titulo cabecalho__titulo--peq', text: titulo }),
       el('button', { class: 'btn btn--pequeno', type: 'button', text: 'Adicionar',
-        onclick: () => accoes.nova(tipo) }),
+        onclick: () => accoes.nova() }),
     ]),
     ordenadas.length
       ? el('ul', { class: 'lista cartao' },
           ordenadas.map((c) => linhaCategoria(c, porNome, accoes)))
       : el('div', { class: 'cartao' }, [
-          el('p', { class: 'vazio__texto', text: 'Nenhuma categoria deste tipo.' }),
+          el('p', { class: 'vazio__texto', text: 'Nenhuma categoria.' }),
         ]),
   ]);
 }
@@ -310,22 +300,19 @@ export function desenharCategorias(categorias, accoes = {}, tetos = []) {
   if (!categorias.length) {
     fragmento.append(el('div', { class: 'cartao' }, [
       estadoVazio(
-        'Ainda não há categorias. Crie de uma vez as 15 categorias de partida, ou adicione-as uma a uma.',
+        'Ainda não há categorias. Crie de uma vez as 14 categorias de partida, ou adicione-as uma a uma.',
         'Criar categorias de partida',
         () => accoes.sugeridas && accoes.sugeridas(),
       ),
       el('div', { class: 'vazio__alternativa' }, [
         el('button', { class: 'btn btn--texto', type: 'button', text: 'Prefiro criar uma categoria manualmente',
-          onclick: () => accoes.nova && accoes.nova('despesa') }),
+          onclick: () => accoes.nova && accoes.nova() }),
       ]),
     ]));
     return fragmento;
   }
 
-  fragmento.append(
-    seccao('Saídas', 'despesa', categorias.filter((c) => c.kind === 'despesa'), porNome, accoes),
-    seccao('Entradas', 'receita', categorias.filter((c) => c.kind === 'receita'), porNome, accoes),
-  );
+  fragmento.append(seccao('Categorias', categorias, porNome, accoes));
 
   return fragmento;
 }
@@ -338,7 +325,7 @@ export async function montarCategorias(alvo) {
   async function recarregar() {
     const [categorias, tetos] = await Promise.all([listarCategorias(), listarTetos()]);
     alvo.replaceChildren(desenharCategorias(categorias, {
-      nova:        (tipo) => novaCategoria(tipo, categorias, recarregar),
+      nova:        () => novaCategoria(categorias, recarregar),
       editar:      (c) => editarCategoria(c, categorias, recarregar),
       apagar:      (c) => removerCategoria(c, recarregar),
       sugeridas:   () => criarSugeridas(recarregar),

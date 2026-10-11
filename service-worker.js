@@ -11,7 +11,7 @@
 // versao, um ficheiro novo pode importar de um ficheiro antigo ainda em
 // cache da versao anterior (foi o que aconteceu ao acrescentar assets.js:
 // ficou a pedir um export de db.js que a versao em cache ainda nao tinha).
-const VERSAO = 'gestfi-v5';
+const VERSAO = 'gestfi-v6';
 
 const ESTATICOS = [
   './',
